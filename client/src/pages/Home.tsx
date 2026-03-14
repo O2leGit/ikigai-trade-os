@@ -20,6 +20,7 @@ import {
   DECISION_SUMMARY,
 } from "@/lib/briefingData";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useLiveData } from "@/hooks/useLiveData";
 import { Link } from "wouter";
 import {
   TrendingUp,
@@ -125,6 +126,20 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("executive-view");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
+  const liveData = useLiveData();
+
+  // Live data with fallback to hardcoded briefing data
+  const displayMarketSnapshot = liveData.marketSnapshot || MARKET_SNAPSHOT;
+  const displayNews = liveData.news || NEWS_SIGNALS;
+  const displayCalendar = liveData.calendar || EVENT_CALENDAR;
+  const displaySectors = liveData.sectors
+    ? liveData.sectors.map((s) => ({
+        sector: `${s.sector} (${s.ticker})`,
+        ytd: s.ytd,
+        status: s.status,
+        note: `Current price: $${s.price.toFixed(2)} | Day change: ${s.changePercent >= 0 ? "+" : ""}${s.changePercent.toFixed(2)}%`,
+      }))
+    : SECTOR_ROTATION;
 
   const NAV_ITEMS = useMemo(() => {
     const items = [...BASE_NAV_ITEMS];
@@ -185,7 +200,11 @@ export default function Home() {
             <span className="text-border">·</span>
             <span>{BRIEFING_EDITION}</span>
             <span className="text-border">·</span>
-            <span className="text-primary animate-pulse font-semibold">● LIVE DATA AS OF MARKET OPEN</span>
+            {liveData.marketSnapshot ? (
+              <span className="text-green-400 animate-pulse font-semibold">● LIVE DATA{liveData.lastUpdated ? ` · ${liveData.lastUpdated.toLocaleTimeString()}` : ""}</span>
+            ) : (
+              <span className="text-yellow-400 font-semibold">● STATIC BRIEFING</span>
+            )}
           </div>
 
           <div className="ml-auto flex items-center gap-3">
@@ -346,7 +365,7 @@ export default function Home() {
               <SectionTitle number="02" icon={<BarChart2 className="w-4 h-4" />} title="Market Environment" />
               {/* Snapshot grid */}
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-4">
-                {MARKET_SNAPSHOT.map((item) => (
+                {displayMarketSnapshot.map((item) => (
                   <div key={item.asset} className="p-3 rounded-lg border border-border bg-card text-center">
                     <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 truncate">{item.asset}</p>
                     <p className="font-mono text-sm font-semibold text-foreground">{item.level}</p>
@@ -400,7 +419,7 @@ export default function Home() {
             <section id="news-sentiment" className="scroll-mt-16">
               <SectionTitle number="03" icon={<Activity className="w-4 h-4" />} title="News & Sentiment Signals" />
               <div className="mt-4 space-y-3">
-                {NEWS_SIGNALS.map((signal, i) => (
+                {displayNews.map((signal, i) => (
                   <div key={i} className="p-4 rounded-lg border border-border bg-card">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <ImpactBadge impact={signal.impact} />
@@ -452,7 +471,7 @@ export default function Home() {
             <section id="event-calendar" className="scroll-mt-16">
               <SectionTitle number="04" icon={<Calendar className="w-4 h-4" />} title="Event Risk Calendar" />
               <div className="mt-4 space-y-2">
-                {EVENT_CALENDAR.map((ev, i) => (
+                {displayCalendar.map((ev, i) => (
                   <div key={i} className="flex gap-4 p-4 rounded-lg border border-border bg-card">
                     <div className="flex-shrink-0 w-24 text-right">
                       <p className="text-xs font-mono font-semibold text-foreground">{ev.date}</p>
@@ -473,7 +492,7 @@ export default function Home() {
             {/* ── 05 SECTOR ROTATION ── */}
             <section id="sector-rotation" className="scroll-mt-16">
               <SectionTitle number="05" icon={<TrendingUp className="w-4 h-4" />} title="Sector Rotation" />
-              <SectorHeatmap sectors={SECTOR_ROTATION} />
+              <SectorHeatmap sectors={displaySectors} />
             </section>
 
             {/* ── 06 SEASONAL CONTEXT ── */}

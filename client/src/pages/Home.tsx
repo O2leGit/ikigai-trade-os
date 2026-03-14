@@ -48,6 +48,7 @@ import {
   LogOut,
   Upload as UploadIcon,
   Lock,
+  Plug,
 } from "lucide-react";
 import { TickerStrip } from "@/components/TickerStrip";
 import { RegimeBadge } from "@/components/RegimeBadge";
@@ -262,12 +263,20 @@ export default function Home() {
               </button>
             </Link>
             {isAdmin && (
-              <Link href="/upload">
-                <button className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
-                  <UploadIcon className="w-4 h-4" />
-                  Upload Briefing
-                </button>
-              </Link>
+              <>
+                <Link href="/upload">
+                  <button className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+                    <UploadIcon className="w-4 h-4" />
+                    Upload Briefing
+                  </button>
+                </Link>
+                <Link href="/connections">
+                  <button className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+                    <Plug className="w-4 h-4" />
+                    Connections
+                  </button>
+                </Link>
+              </>
             )}
           </div>
 

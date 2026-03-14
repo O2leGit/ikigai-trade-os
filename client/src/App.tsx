@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Archive from "./pages/Archive";
 import Admin from "./pages/Admin";
 import Upload from "./pages/Upload";
+import Connections from "./pages/Connections";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path={"/archive"} component={Archive} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/upload"} component={Upload} />
+      <Route path={"/connections"} component={Connections} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

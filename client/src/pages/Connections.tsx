@@ -157,42 +157,38 @@ export default function Connections() {
     }
   }
 
-  async function testYahooDirect(
+  async function testMarketQuote(
     name: string,
     symbol: string
   ): Promise<TestResult> {
     const t0 = performance.now();
     try {
       const res = await fetch(
-        `https://corsproxy.io/?https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1d&interval=5m`
+        `/api/market-quote?symbol=${encodeURIComponent(symbol)}`
       );
       const ms = Math.round(performance.now() - t0);
       if (!res.ok)
         return {
           feed: name,
-          source: "Yahoo Finance (proxy)",
+          source: "Netlify Function → Yahoo",
           status: "FAIL",
           data: `HTTP ${res.status}`,
           latency: `${ms}ms`,
         };
-      const json = await res.json();
-      const price =
-        json?.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if (price && price > 0) {
+      const data = await res.json();
+      if (data.price && data.price > 0) {
+        const sign = data.change >= 0 ? "+" : "";
         return {
           feed: name,
-          source: "Yahoo Finance (proxy)",
+          source: "Netlify Function → Yahoo",
           status: "LIVE",
-          data: price.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }),
+          data: `${data.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${sign}${data.changePercent.toFixed(2)}%)`,
           latency: `${ms}ms`,
         };
       }
       return {
         feed: name,
-        source: "Yahoo Finance (proxy)",
+        source: "Netlify Function → Yahoo",
         status: "FAIL",
         data: "No price data",
         latency: `${ms}ms`,
@@ -201,7 +197,7 @@ export default function Connections() {
       const ms = Math.round(performance.now() - t0);
       return {
         feed: name,
-        source: "Yahoo Finance (proxy)",
+        source: "Netlify Function → Yahoo",
         status: "FAIL",
         data: e.message?.substring(0, 40) || "Error",
         latency: `${ms}ms`,
@@ -373,8 +369,8 @@ export default function Connections() {
     setIsRunning(true);
     setResults([
       { feed: "Ticker Strip", source: "Netlify Function → Yahoo", status: "TESTING", data: "Testing...", latency: "—" },
-      { feed: "S&P 500", source: "Yahoo Finance (proxy)", status: "TESTING", data: "Testing...", latency: "—" },
-      { feed: "VIX", source: "Yahoo Finance (proxy)", status: "TESTING", data: "Testing...", latency: "—" },
+      { feed: "S&P 500", source: "Netlify Function → Yahoo", status: "TESTING", data: "Testing...", latency: "—" },
+      { feed: "VIX", source: "Netlify Function → Yahoo", status: "TESTING", data: "Testing...", latency: "—" },
       { feed: "Finnhub REST", source: "Finnhub", status: "TESTING", data: "Testing...", latency: "—" },
       { feed: "Twelve Data", source: "Twelve Data", status: "TESTING", data: "Testing...", latency: "—" },
       { feed: "Polygon.io", source: "Polygon.io", status: "TESTING", data: "Testing...", latency: "—" },
@@ -382,8 +378,8 @@ export default function Connections() {
 
     const all = await Promise.all([
       testTickerApi(),
-      testYahooDirect("S&P 500", "%5EGSPC"),
-      testYahooDirect("VIX", "%5EVIX"),
+      testMarketQuote("S&P 500", "^GSPC"),
+      testMarketQuote("VIX", "^VIX"),
       testFinnhub(),
       testTwelveData(),
       testPolygon(),

@@ -12,8 +12,8 @@ const AdminContext = createContext<AdminContextType>({
   logout: () => {},
 });
 
-// SHA-256 hash of the admin password "ikigai2026!"
-const ADMIN_HASH = "87f5b15a55a6f8e36408813d3ea07ae0f2fbadc60f00afacfb655956113eae13";
+// SHA-256 hash of the admin password
+const ADMIN_HASH = "ad5e29eae2b17ebc6b81feff6782b4fd5ff3cff3a77dfff656d7fc2ec39de15d";
 
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();

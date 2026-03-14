@@ -18,6 +18,11 @@ import {
   CROSS_ACCOUNT_RISKS,
   ACCOUNT_HISTORY,
   DECISION_SUMMARY,
+  OVERNIGHT_DEVELOPMENTS,
+  CRISIS_STATUS,
+  WEEKLY_THESIS_SCORECARD,
+  SCENARIO_MATRIX,
+  ECONOMIC_DATA_BREAKDOWN,
 } from "@/lib/briefingData";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useLiveData } from "@/hooks/useLiveData";
@@ -50,6 +55,10 @@ import {
   Upload as UploadIcon,
   Lock,
   Plug,
+  Globe,
+  Crosshair,
+  BarChart,
+  FileText,
 } from "lucide-react";
 import { TickerStrip } from "@/components/TickerStrip";
 import { RegimeBadge } from "@/components/RegimeBadge";
@@ -60,12 +69,17 @@ import { ImpactBadge } from "@/components/ImpactBadge";
 // ─── NAV ITEMS ───────────────────────────────────────────────
 const BASE_NAV_ITEMS = [
   { id: "executive-view", label: "Executive View", icon: <Zap className="w-4 h-4" /> },
+  { id: "overnight-developments", label: "Overnight Developments", icon: <Clock className="w-4 h-4" /> },
   { id: "market-environment", label: "Market Environment", icon: <BarChart2 className="w-4 h-4" /> },
+  { id: "crisis-status", label: "Crisis Status", icon: <Globe className="w-4 h-4" /> },
   { id: "news-sentiment", label: "News & Sentiment", icon: <Activity className="w-4 h-4" /> },
   { id: "event-calendar", label: "Event Risk Calendar", icon: <Calendar className="w-4 h-4" /> },
+  { id: "economic-data", label: "Economic Data", icon: <FileText className="w-4 h-4" /> },
   { id: "sector-rotation", label: "Sector Rotation", icon: <TrendingUp className="w-4 h-4" /> },
   { id: "seasonal-context", label: "Seasonal Context", icon: <BookOpen className="w-4 h-4" /> },
   { id: "prior-grades", label: "Prior Session Grades", icon: <Activity className="w-4 h-4" /> },
+  { id: "weekly-thesis", label: "Weekly Thesis", icon: <Crosshair className="w-4 h-4" /> },
+  { id: "scenario-matrix", label: "Scenario Matrix", icon: <BarChart className="w-4 h-4" /> },
   { id: "earnings-plays", label: "Earnings Plays", icon: <DollarSign className="w-4 h-4" /> },
   { id: "trading-ideas", label: "Trading Ideas", icon: <Target className="w-4 h-4" /> },
 ];
@@ -360,9 +374,39 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 02 MARKET ENVIRONMENT ── */}
+            {/* ── 02 OVERNIGHT DEVELOPMENTS ── */}
+            <section id="overnight-developments" className="scroll-mt-16">
+              <SectionTitle number="02" icon={<Clock className="w-4 h-4" />} title="Overnight Developments" />
+              <div className="mt-4 space-y-2">
+                {OVERNIGHT_DEVELOPMENTS.map((dev, i) => (
+                  <div key={i} className="flex gap-4 p-4 rounded-lg border border-border bg-card">
+                    <div className="flex-shrink-0 w-24 text-right">
+                      <p className="text-xs font-mono font-semibold text-foreground">{dev.time}</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <ImpactBadge impact={dev.impact} />
+                        <p className="text-sm font-semibold text-foreground">{dev.event}</p>
+                      </div>
+                      <p className="text-xs text-foreground/70 leading-relaxed mb-2">{dev.details}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {dev.affectedAssets.map((asset) => (
+                          <span key={asset} className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                            dev.direction === "bullish" ? "text-bull border-bull/30 bg-bull/10" : "text-bear border-bear/30 bg-bear/10"
+                          }`}>
+                            {asset}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ── 03 MARKET ENVIRONMENT ── */}
             <section id="market-environment" className="scroll-mt-16">
-              <SectionTitle number="02" icon={<BarChart2 className="w-4 h-4" />} title="Market Environment" />
+              <SectionTitle number="03" icon={<BarChart2 className="w-4 h-4" />} title="Market Environment" />
               {/* Snapshot grid */}
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-4">
                 {displayMarketSnapshot.map((item) => (
@@ -415,9 +459,64 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 03 NEWS & SENTIMENT ── */}
+            {/* ── 04 CRISIS / GEOPOLITICAL STATUS ── */}
+            <section id="crisis-status" className="scroll-mt-16">
+              <SectionTitle number="04" icon={<Globe className="w-4 h-4" />} title="Crisis / Geopolitical Status" />
+              <div className="mt-4 space-y-4">
+                {/* Threat level banner */}
+                <div className={`p-5 rounded-lg border-2 ${
+                  CRISIS_STATUS.threatLevel === "CRITICAL" ? "border-bear bg-bear/5" :
+                  CRISIS_STATUS.threatLevel === "HIGH" ? "border-orange-500 bg-orange-900/5" :
+                  "border-yellow-500 bg-yellow-900/5"
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded border animate-pulse ${
+                        CRISIS_STATUS.threatLevel === "CRITICAL" ? "text-bear border-bear/50 bg-bear/20" :
+                        "text-orange-400 border-orange-500/50 bg-orange-900/20"
+                      }`}>
+                        THREAT LEVEL: {CRISIS_STATUS.threatLevel}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">Day {CRISIS_STATUS.dayCount} — Since {CRISIS_STATUS.startDate}</span>
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-display font-bold text-foreground mb-2">{CRISIS_STATUS.title}</h3>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{CRISIS_STATUS.summary}</p>
+                </div>
+
+                {/* Threat indicators */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {CRISIS_STATUS.indicators.map((ind) => (
+                    <div key={ind.label} className="p-3 rounded-lg border border-border bg-card">
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">{ind.label}</p>
+                      <p className={`text-sm font-mono font-bold ${
+                        ind.status === "critical" ? "text-bear" :
+                        ind.status === "warning" ? "text-yellow-400" :
+                        "text-muted-foreground"
+                      }`}>{ind.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Affected sectors */}
+                <div className="p-4 rounded-lg border border-border bg-card">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-3">Sector Impact Assessment</p>
+                  <div className="space-y-2">
+                    {CRISIS_STATUS.affectedSectors.map((sec) => (
+                      <div key={sec.sector} className="flex items-center gap-3">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${sec.direction === "up" ? "bg-bull" : "bg-bear"}`} />
+                        <span className="text-xs font-semibold text-foreground w-28 flex-shrink-0">{sec.sector}</span>
+                        <span className="text-xs text-foreground/70">{sec.impact}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ── 05 NEWS & SENTIMENT ── */}
             <section id="news-sentiment" className="scroll-mt-16">
-              <SectionTitle number="03" icon={<Activity className="w-4 h-4" />} title="News & Sentiment Signals" />
+              <SectionTitle number="05" icon={<Activity className="w-4 h-4" />} title="News & Sentiment Signals" />
               <div className="mt-4 space-y-3">
                 {displayNews.map((signal, i) => (
                   <div key={i} className="p-4 rounded-lg border border-border bg-card">
@@ -467,9 +566,9 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 04 EVENT RISK CALENDAR ── */}
+            {/* ── 06 EVENT RISK CALENDAR ── */}
             <section id="event-calendar" className="scroll-mt-16">
-              <SectionTitle number="04" icon={<Calendar className="w-4 h-4" />} title="Event Risk Calendar" />
+              <SectionTitle number="06" icon={<Calendar className="w-4 h-4" />} title="Event Risk Calendar" />
               <div className="mt-4 space-y-2">
                 {displayCalendar.map((ev, i) => (
                   <div key={i} className="flex gap-4 p-4 rounded-lg border border-border bg-card">
@@ -489,15 +588,119 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 05 SECTOR ROTATION ── */}
+            {/* ── 07 ECONOMIC DATA BREAKDOWN ── */}
+            <section id="economic-data" className="scroll-mt-16">
+              <SectionTitle number="07" icon={<FileText className="w-4 h-4" />} title="Economic Data Breakdown" />
+              <div className="mt-4 space-y-4">
+                {/* PCE Headline vs Core */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-4 rounded-lg border border-border bg-card">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Headline PCE</p>
+                      <EconStatusBadge status={ECONOMIC_DATA_BREAKDOWN.headline.status} />
+                    </div>
+                    <p className="text-2xl font-mono font-bold text-foreground">{ECONOMIC_DATA_BREAKDOWN.headline.actual}</p>
+                    <div className="flex gap-4 mt-2 text-xs text-muted-foreground font-mono">
+                      <span>Est: {ECONOMIC_DATA_BREAKDOWN.headline.expected}</span>
+                      <span>Prior: {ECONOMIC_DATA_BREAKDOWN.headline.prior}</span>
+                    </div>
+                  </div>
+                  <div className={`p-4 rounded-lg border bg-card ${
+                    ECONOMIC_DATA_BREAKDOWN.core.status === "HOT" ? "border-bear/40" : "border-border"
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Core PCE (Fed Target)</p>
+                      <EconStatusBadge status={ECONOMIC_DATA_BREAKDOWN.core.status} />
+                    </div>
+                    <p className={`text-2xl font-mono font-bold ${
+                      ECONOMIC_DATA_BREAKDOWN.core.status === "HOT" ? "text-bear" : "text-foreground"
+                    }`}>{ECONOMIC_DATA_BREAKDOWN.core.actual}</p>
+                    <div className="flex gap-4 mt-2 text-xs text-muted-foreground font-mono">
+                      <span>Est: {ECONOMIC_DATA_BREAKDOWN.core.expected}</span>
+                      <span>Prior: {ECONOMIC_DATA_BREAKDOWN.core.prior}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PCE Components table */}
+                <div className="rounded-lg border border-border bg-card overflow-hidden">
+                  <p className="px-4 py-3 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold border-b border-border bg-secondary/20">PCE Components</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border bg-secondary/10">
+                          <th className="text-left px-4 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Category</th>
+                          <th className="text-right px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Actual</th>
+                          <th className="text-right px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Expected</th>
+                          <th className="text-right px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Prior</th>
+                          <th className="text-center px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Status</th>
+                          <th className="text-right px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Weight</th>
+                          <th className="text-left px-4 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ECONOMIC_DATA_BREAKDOWN.components.map((comp) => (
+                          <tr key={comp.category} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
+                            <td className="px-4 py-2.5 font-semibold text-foreground">{comp.category}</td>
+                            <td className="px-3 py-2.5 text-right font-mono text-foreground">{comp.actual}</td>
+                            <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{comp.expected}</td>
+                            <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{comp.prior}</td>
+                            <td className="px-3 py-2.5 text-center"><EconStatusBadge status={comp.status} /></td>
+                            <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{comp.weight}</td>
+                            <td className="px-4 py-2.5 text-foreground/60 max-w-xs">{comp.note}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* GDP Breakdown */}
+                <div className="rounded-lg border border-border bg-card overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border bg-secondary/20 flex items-center justify-between">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{ECONOMIC_DATA_BREAKDOWN.gdp.title}</p>
+                    <EconStatusBadge status={ECONOMIC_DATA_BREAKDOWN.gdp.status} />
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-baseline gap-4 mb-4">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Actual</p>
+                        <p className="text-2xl font-mono font-bold text-bear">{ECONOMIC_DATA_BREAKDOWN.gdp.actual}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">1st Est.</p>
+                        <p className="text-lg font-mono text-muted-foreground line-through">{ECONOMIC_DATA_BREAKDOWN.gdp.firstEstimate}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Prior (Q3)</p>
+                        <p className="text-lg font-mono text-muted-foreground">{ECONOMIC_DATA_BREAKDOWN.gdp.prior}%</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {ECONOMIC_DATA_BREAKDOWN.gdp.components.map((comp) => (
+                        <div key={comp.category} className="flex items-center gap-3">
+                          <span className="text-xs font-semibold text-foreground w-40 flex-shrink-0">{comp.category}</span>
+                          <span className={`text-xs font-mono font-bold ${
+                            comp.value.startsWith("+") ? "text-bull" : "text-bear"
+                          }`}>{comp.value}</span>
+                          <span className="text-xs text-foreground/60">{comp.note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ── 08 SECTOR ROTATION ── */}
             <section id="sector-rotation" className="scroll-mt-16">
-              <SectionTitle number="05" icon={<TrendingUp className="w-4 h-4" />} title="Sector Rotation" />
+              <SectionTitle number="08" icon={<TrendingUp className="w-4 h-4" />} title="Sector Rotation" />
               <SectorHeatmap sectors={displaySectors} />
             </section>
 
-            {/* ── 06 SEASONAL CONTEXT ── */}
+            {/* ── 09 SEASONAL CONTEXT ── */}
             <section id="seasonal-context" className="scroll-mt-16">
-              <SectionTitle number="06" icon={<BookOpen className="w-4 h-4" />} title="Seasonal Context" />
+              <SectionTitle number="09" icon={<BookOpen className="w-4 h-4" />} title="Seasonal Context" />
               <div className="mt-4 space-y-3">
                 <div className="p-4 rounded-lg border border-border bg-card">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{SEASONAL_CONTEXT.period}</p>
@@ -528,9 +731,9 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 07 PRIOR SESSION GRADES ── */}
+            {/* ── 10 PRIOR SESSION GRADES ── */}
             <section id="prior-grades" className="scroll-mt-16">
-              <SectionTitle number="07" icon={<Activity className="w-4 h-4" />} title="Prior Session Grades" />
+              <SectionTitle number="10" icon={<Activity className="w-4 h-4" />} title="Prior Session Grades" />
               <div className="mt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <p className="text-xs text-muted-foreground">Session: {PRIOR_SESSION_GRADES.date}</p>
@@ -558,9 +761,126 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 08 EARNINGS PLAYS ── */}
+            {/* ── 11 WEEKLY THESIS SCORECARD ── */}
+            <section id="weekly-thesis" className="scroll-mt-16">
+              <SectionTitle number="11" icon={<Crosshair className="w-4 h-4" />} title="Weekly Thesis Scorecard" />
+              <div className="mt-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <p className="text-xs text-muted-foreground">Week of: {WEEKLY_THESIS_SCORECARD.weekOf}</p>
+                  <span className="text-xs font-mono font-bold text-primary px-2 py-0.5 rounded border border-primary/30 bg-primary/10">
+                    {WEEKLY_THESIS_SCORECARD.overallAccuracy} Accuracy
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {WEEKLY_THESIS_SCORECARD.theses.map((t, i) => (
+                    <div key={i} className="p-4 rounded-lg border border-border bg-card">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-2">
+                          {t.status === "CORRECT" ? (
+                            <CheckCircle className="w-4 h-4 text-bull flex-shrink-0" />
+                          ) : t.status === "WRONG" ? (
+                            <XCircle className="w-4 h-4 text-bear flex-shrink-0" />
+                          ) : (
+                            <MinusCircle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                          )}
+                          <p className="text-sm font-semibold text-foreground">{t.thesis}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <ThesisStatusBadge status={t.status} />
+                          <GradeChip grade={t.grade} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-foreground/70 leading-relaxed ml-6">{t.notes}</p>
+                      <div className="flex items-center gap-2 mt-2 ml-6">
+                        <span className="text-[10px] text-muted-foreground">Confidence:</span>
+                        <ConvictionBadge conviction={t.confidence} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Win rate summary */}
+                <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Correct</p>
+                      <p className="text-xl font-mono font-bold text-bull">{WEEKLY_THESIS_SCORECARD.theses.filter(t => t.status === "CORRECT").length}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Developing</p>
+                      <p className="text-xl font-mono font-bold text-yellow-400">{WEEKLY_THESIS_SCORECARD.theses.filter(t => t.status === "DEVELOPING").length}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Wrong</p>
+                      <p className="text-xl font-mono font-bold text-bear">{WEEKLY_THESIS_SCORECARD.theses.filter(t => t.status === "WRONG").length}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ── 12 SCENARIO PROBABILITY MATRIX ── */}
+            <section id="scenario-matrix" className="scroll-mt-16">
+              <SectionTitle number="12" icon={<BarChart className="w-4 h-4" />} title="Forward Scenario Matrix" />
+              <div className="mt-4 space-y-3">
+                {SCENARIO_MATRIX.map((sc, i) => (
+                  <div key={i} className="p-4 rounded-lg border border-border bg-card overflow-hidden">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`text-lg font-mono font-bold ${
+                          sc.probability >= 30 ? "text-foreground" :
+                          sc.probability >= 15 ? "text-foreground/80" :
+                          "text-foreground/60"
+                        }`}>{sc.probability}%</span>
+                        <h4 className="text-sm font-semibold text-foreground">{sc.scenario}</h4>
+                      </div>
+                      <span className="text-[10px] font-mono text-muted-foreground border border-border px-2 py-0.5 rounded">
+                        SPX {sc.spxRange}
+                      </span>
+                    </div>
+                    {/* Probability bar */}
+                    <div className="h-2.5 rounded-full bg-secondary/40 mb-3 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          sc.probability >= 30 ? "bg-primary" :
+                          sc.probability >= 15 ? "bg-primary/60" :
+                          "bg-primary/30"
+                        }`}
+                        style={{ width: `${sc.probability}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-foreground/70 leading-relaxed mb-3">{sc.description}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold mb-1.5">Key Triggers</p>
+                        <ul className="space-y-1">
+                          {sc.triggers.map((trigger, j) => (
+                            <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/70">
+                              <ChevronRight className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
+                              {trigger}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold mb-1.5">Best Trades</p>
+                        <ul className="space-y-1">
+                          {sc.bestTrades.map((trade, j) => (
+                            <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/70">
+                              <Target className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
+                              {trade}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ── 13 EARNINGS PLAYS ── */}
             <section id="earnings-plays" className="scroll-mt-16">
-              <SectionTitle number="08" icon={<DollarSign className="w-4 h-4" />} title="Earnings Plays" />
+              <SectionTitle number="13" icon={<DollarSign className="w-4 h-4" />} title="Earnings Plays" />
               <div className="mt-4 space-y-4">
                 {EARNINGS_PLAYS.map((ep) => (
                   <div key={ep.ticker} className="p-4 rounded-lg border border-border bg-card">
@@ -599,9 +919,9 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 09 TRADING IDEAS ── */}
+            {/* ── 14 TRADING IDEAS ── */}
             <section id="trading-ideas" className="scroll-mt-16">
-              <SectionTitle number="09" icon={<Target className="w-4 h-4" />} title="Trading Ideas" />
+              <SectionTitle number="14" icon={<Target className="w-4 h-4" />} title="Trading Ideas" />
 
               {/* TODAY */}
               <div className="mt-4">
@@ -643,17 +963,17 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 10 PORTFOLIO REVIEW (admin only) ── */}
+            {/* ── 15 PORTFOLIO REVIEW (admin only) ── */}
             {isAdmin && (
              <section id="portfolio-review" className="scroll-mt-16">
-              <SectionTitle number="10" icon={<Briefcase className="w-4 h-4" />} title="Portfolio Review" />
+              <SectionTitle number="15" icon={<Briefcase className="w-4 h-4" />} title="Portfolio Review" />
               <PortfolioReview accounts={ACCOUNTS} crossRisks={CROSS_ACCOUNT_RISKS} />
             </section>
             )}
 
-            {/* ── 11 DECISION SUMMARY ── */}
+            {/* ── 16 DECISION SUMMARY ── */}
             <section id="decision-summary" className="scroll-mt-16 pb-16">
-              <SectionTitle number="11" icon={<Shield className="w-4 h-4" />} title="Decision Summary" />
+              <SectionTitle number="16" icon={<Shield className="w-4 h-4" />} title="Decision Summary" />
               <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 rounded-lg border border-bull/20 bg-bull/5">
                   <div className="flex items-center gap-2 mb-2">
@@ -683,6 +1003,49 @@ export default function Home() {
         </main>
       </div>
     </div>
+  );
+}
+
+// ─── BADGE HELPERS ──────────────────────────────────────────
+
+function EconStatusBadge({ status }: { status: string }) {
+  const color =
+    status === "HOT" ? "text-bear border-bear/30 bg-bear/10" :
+    status === "WARM" ? "text-orange-400 border-orange-500/30 bg-orange-900/10" :
+    status === "COOL" ? "text-bull border-bull/30 bg-bull/10" :
+    status === "SHOCK" ? "text-bear border-bear/50 bg-bear/20" :
+    "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
+  return (
+    <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${color}`}>
+      {status}
+    </span>
+  );
+}
+
+function ThesisStatusBadge({ status }: { status: string }) {
+  const color =
+    status === "CORRECT" ? "text-bull border-bull/30 bg-bull/10" :
+    status === "WRONG" ? "text-bear border-bear/30 bg-bear/10" :
+    "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
+  return (
+    <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${color}`}>
+      {status}
+    </span>
+  );
+}
+
+function TradeStatusBadge({ status }: { status: string }) {
+  const color =
+    status === "OPEN" ? "text-primary border-primary/30 bg-primary/10" :
+    status === "FILLED" ? "text-bull border-bull/30 bg-bull/10" :
+    status === "TARGET HIT" ? "text-bull border-bull/50 bg-bull/20" :
+    status === "STOPPED" ? "text-bear border-bear/30 bg-bear/10" :
+    status === "CLOSED" ? "text-muted-foreground border-border bg-secondary" :
+    "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
+  return (
+    <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${color}`}>
+      {status}
+    </span>
   );
 }
 
@@ -761,6 +1124,7 @@ type TradeIdea = {
   stop: string;
   conviction: string;
   sizing: string;
+  status?: string;
 };
 
 function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
@@ -782,6 +1146,7 @@ function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
           {idea.horizon}
         </span>
         <ConvictionBadge conviction={idea.conviction} />
+        {idea.status && <TradeStatusBadge status={idea.status} />}
       </div>
       <p className="text-xs text-foreground/80 leading-relaxed mb-3">{idea.thesis}</p>
       {/* Key levels */}

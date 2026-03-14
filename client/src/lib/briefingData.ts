@@ -7,6 +7,240 @@ export const BRIEFING_DATE = "Friday, March 13, 2026";
 export const BRIEFING_EDITION = "Vol. I — Issue 003";
 
 // ============================================================
+// OVERNIGHT DEVELOPMENTS — Structured event table
+// ============================================================
+export const OVERNIGHT_DEVELOPMENTS = [
+  {
+    time: "10:30 PM CT",
+    event: "Iran Pledges Hormuz Closure Indefinitely",
+    details: "Iranian Revolutionary Guard commander confirms Strait of Hormuz blockade will continue 'until all sanctions are lifted.' 20% of global oil transits through Hormuz.",
+    impact: "CRITICAL" as const,
+    affectedAssets: ["WTI", "Brent", "USO", "XLE", "GUSH"],
+    direction: "bearish" as const,
+  },
+  {
+    time: "11:45 PM CT",
+    event: "Goldman Sachs Raises Brent Forecast to $100+",
+    details: "Goldman, Bank of America raise March Brent targets. Goldman sees $85/bbl in April if de-escalation begins. Supply disruption premium now structural.",
+    impact: "HIGH" as const,
+    affectedAssets: ["USO", "XLE", "GUSH", "XOP"],
+    direction: "bullish" as const,
+  },
+  {
+    time: "2:15 AM CT",
+    event: "Asian Markets Sell Off on Stagflation Fears",
+    details: "Nikkei -2.1%, Hang Seng -1.8%, Shanghai -0.9%. Global risk-off accelerating ahead of US PCE/GDP data.",
+    impact: "HIGH" as const,
+    affectedAssets: ["SPX", "QQQ", "EEM"],
+    direction: "bearish" as const,
+  },
+  {
+    time: "5:30 AM CT",
+    event: "European Markets Open Lower",
+    details: "STOXX 600 -1.3%, DAX -1.5%, FTSE -0.8%. Defense stocks outperforming. European energy names bid on Brent $100+.",
+    impact: "MEDIUM" as const,
+    affectedAssets: ["SPY", "VIX", "ITA"],
+    direction: "bearish" as const,
+  },
+  {
+    time: "8:30 AM CT",
+    event: "Core PCE +3.1% YoY / GDP Revised to 0.7%",
+    details: "Core PCE +0.4% MoM / +3.1% YoY (above 3.0% consensus). GDP Q4 revised DOWN to 0.7% from 1.4%. Stagflation confirmed. Fed trapped.",
+    impact: "CRITICAL" as const,
+    affectedAssets: ["SPX", "QQQ", "TLT", "GLD", "VIX"],
+    direction: "bearish" as const,
+  },
+];
+
+// ============================================================
+// CRISIS / GEOPOLITICAL STATUS
+// ============================================================
+export const CRISIS_STATUS = {
+  threatLevel: "CRITICAL" as const,
+  title: "Iran-US Strait of Hormuz Crisis",
+  summary: "Active military confrontation with direct impact on global energy supply. Hormuz blockade disrupts 20% of global oil transit. Escalation risk remains elevated with no diplomatic off-ramp visible.",
+  startDate: "March 3, 2026",
+  dayCount: 10,
+  indicators: [
+    { label: "Military Escalation Probability", value: "65%", status: "critical" as const },
+    { label: "Oil Supply Disruption", value: "ACTIVE", status: "critical" as const },
+    { label: "Hormuz Transit Status", value: "BLOCKED", status: "critical" as const },
+    { label: "Diplomatic Channels", value: "STALLED", status: "warning" as const },
+    { label: "US Naval Deployment", value: "2 CARRIER GROUPS", status: "warning" as const },
+    { label: "Iran Nuclear Posture", value: "MONITORING", status: "neutral" as const },
+  ],
+  affectedSectors: [
+    { sector: "Energy", impact: "DIRECT — Oil +30% since crisis began", direction: "up" as const },
+    { sector: "Defense", impact: "DIRECT — ITA +15.4% YTD, SHLD +72%", direction: "up" as const },
+    { sector: "Gold/Miners", impact: "SAFE HAVEN — GLD/GDX bid on uncertainty", direction: "up" as const },
+    { sector: "Technology", impact: "RISK-OFF — Multiple compression, NVDA -8%", direction: "down" as const },
+    { sector: "Financials", impact: "CREDIT RISK — Yield curve + oil shock", direction: "down" as const },
+    { sector: "Consumer Disc.", impact: "SENTIMENT — Gas prices crushing confidence", direction: "down" as const },
+  ],
+};
+
+// ============================================================
+// WEEKLY THESIS SCORECARD
+// ============================================================
+export const WEEKLY_THESIS_SCORECARD = {
+  weekOf: "March 9-13, 2026",
+  overallAccuracy: "78%",
+  theses: [
+    {
+      thesis: "VIX stays elevated above 25",
+      status: "CORRECT" as const,
+      confidence: "HIGH" as const,
+      notes: "VIX at 25.83 — stayed above 25 all week. Iran crisis + stagflation data keeping institutional hedging elevated.",
+      grade: "A",
+    },
+    {
+      thesis: "Energy outperforms all sectors",
+      status: "CORRECT" as const,
+      confidence: "HIGH" as const,
+      notes: "XLE +2.1% weekly, only positive sector. USO +23% open P&L. Goldman raised Brent to $100+.",
+      grade: "A+",
+    },
+    {
+      thesis: "SPX tests 6,500-6,550 support",
+      status: "DEVELOPING" as const,
+      confidence: "MEDIUM-HIGH" as const,
+      notes: "SPX closed at 6,672 on Thursday — approaching but hasn't tested 6,500 yet. Third consecutive down week (-3%).",
+      grade: "B",
+    },
+    {
+      thesis: "Gold holds above $5,000",
+      status: "CORRECT" as const,
+      confidence: "HIGH" as const,
+      notes: "Gold at $5,113 — held above $5,000 all week despite dollar strength. Stagflation hedge demand intact.",
+      grade: "A",
+    },
+    {
+      thesis: "Tech underperforms on risk-off",
+      status: "CORRECT" as const,
+      confidence: "HIGH" as const,
+      notes: "XLK -4.2% weekly. NVDA -8%, ADBE -8.5% (CEO departure). QQQ underperforming SPY by 1.5%.",
+      grade: "A",
+    },
+    {
+      thesis: "Oil retests $100 Brent",
+      status: "CORRECT" as const,
+      confidence: "MEDIUM-HIGH" as const,
+      notes: "Brent hit $100.40 — thesis confirmed. Iran Hormuz closure is structural supply disruption.",
+      grade: "A+",
+    },
+    {
+      thesis: "ADBE gaps down on earnings",
+      status: "CORRECT" as const,
+      confidence: "MEDIUM" as const,
+      notes: "ADBE beat on EPS/revenue but CEO departure caused -8.5% gap down. Short bias call was correct.",
+      grade: "A",
+    },
+    {
+      thesis: "Dollar strengthens on safe haven",
+      status: "WRONG" as const,
+      confidence: "MEDIUM" as const,
+      notes: "DXY at 103.40 — modest strength but gold outperforming as safe haven over USD. Stagflation limits USD bullish case.",
+      grade: "C",
+    },
+    {
+      thesis: "10Y yield drops below 4.20%",
+      status: "WRONG" as const,
+      confidence: "LOW" as const,
+      notes: "10Y at 4.26% — stagflation (hot PCE) keeping yields elevated despite growth weakness. Fed rate cut expectations pushed out.",
+      grade: "D",
+    },
+  ],
+};
+
+// ============================================================
+// SCENARIO PROBABILITY MATRIX — Forward 12 weeks
+// ============================================================
+export const SCENARIO_MATRIX = [
+  {
+    scenario: "Base Case: Grinding Lower",
+    description: "SPX 5,900-6,400. Stagflation persists, FOMC holds hawkish, Iran conflict remains unresolved. Slow bleed in equities with periodic relief rallies. VIX 22-30 range.",
+    probability: 40,
+    spxRange: "5,900 - 6,400",
+    triggers: ["FOMC holds, hawkish tone", "Iran conflict continues", "PCE stays above 3%"],
+    bestTrades: ["Short tech on rallies", "Long energy/gold", "Premium selling on elevated IV"],
+  },
+  {
+    scenario: "Diplomatic Resolution Rally",
+    description: "SPX 6,700-7,000. Iran-US reach ceasefire, Hormuz reopens. Oil drops to $75-80. Massive risk-on rotation back into tech/growth. VIX collapses to 15-18.",
+    probability: 25,
+    spxRange: "6,700 - 7,000",
+    triggers: ["Iran ceasefire announcement", "Hormuz reopening confirmed", "Oil drops below $80"],
+    bestTrades: ["Long QQQ/NVDA aggressively", "Close energy longs", "Short VIX/UVXY"],
+  },
+  {
+    scenario: "Capitulation Crash",
+    description: "SPX 5,200-5,500. Iran escalation (direct US-Iran military engagement), oil spikes to $120+, VIX above 40. Forced institutional de-risking.",
+    probability: 15,
+    spxRange: "5,200 - 5,500",
+    triggers: ["Direct US-Iran military engagement", "Oil above $120", "VIX above 40"],
+    bestTrades: ["Long UVXY/VXX", "Deep OTM SPX puts", "Long gold/GDX aggressively"],
+  },
+  {
+    scenario: "Dovish Fed Pivot",
+    description: "SPX 6,500-6,800. Powell acknowledges growth weakness, signals rate cuts despite inflation. Market initially rallies, then debates whether cuts are enough.",
+    probability: 15,
+    spxRange: "6,500 - 6,800",
+    triggers: ["Powell signals cuts at FOMC", "GDP further deterioration", "Unemployment uptick"],
+    bestTrades: ["Long TLT/bonds", "Long rate-sensitive sectors (XLRE, XLU)", "Moderate equity longs"],
+  },
+  {
+    scenario: "Stagflation Spiral",
+    description: "SPX 5,500-5,800. PCE accelerates above 3.5%, GDP turns negative. True 1970s-style stagflation. Fed frozen, market loses confidence in policy.",
+    probability: 5,
+    spxRange: "5,500 - 5,800",
+    triggers: ["Next PCE above 3.5%", "Q1 GDP negative", "Consumer spending contraction"],
+    bestTrades: ["Long commodities broadly", "Short financials", "Long gold/silver/miners"],
+  },
+];
+
+// ============================================================
+// ECONOMIC DATA BREAKDOWN — CPI/PCE component table
+// ============================================================
+export const ECONOMIC_DATA_BREAKDOWN = {
+  release: "PCE Price Index — January 2026",
+  releaseDate: "Friday, March 13, 2026 — 8:30 AM CT",
+  headline: {
+    actual: "+2.8% YoY",
+    expected: "+2.8% YoY",
+    prior: "+2.6% YoY",
+    status: "IN-LINE" as const,
+  },
+  core: {
+    actual: "+3.1% YoY",
+    expected: "+3.0% YoY",
+    prior: "+2.8% YoY",
+    status: "HOT" as const,
+  },
+  components: [
+    { category: "Shelter / Housing", actual: "+4.2%", expected: "+4.0%", prior: "+3.9%", status: "HOT" as const, weight: "34%", note: "Largest contributor — sticky shelter inflation not abating" },
+    { category: "Energy", actual: "+8.7%", expected: "+7.5%", prior: "+5.2%", status: "HOT" as const, weight: "7%", note: "Iran-Hormuz oil shock feeding through — biggest miss" },
+    { category: "Food", actual: "+2.1%", expected: "+2.2%", prior: "+2.3%", status: "COOL" as const, weight: "14%", note: "Moderating — only bright spot in the report" },
+    { category: "Services ex-Housing", actual: "+3.8%", expected: "+3.5%", prior: "+3.3%", status: "HOT" as const, weight: "25%", note: "Super-core inflation accelerating — Fed's key metric" },
+    { category: "Durable Goods", actual: "-1.2%", expected: "-1.5%", prior: "-1.8%", status: "COOL" as const, weight: "12%", note: "Deflation moderating — less negative than expected" },
+    { category: "Nondurable Goods", actual: "+1.8%", expected: "+1.5%", prior: "+1.2%", status: "WARM" as const, weight: "8%", note: "Rising on energy pass-through to consumer goods" },
+  ],
+  gdp: {
+    title: "GDP Q4 2025 — Second Estimate",
+    actual: "0.7%",
+    firstEstimate: "1.4%",
+    prior: "2.1% (Q3)",
+    status: "SHOCK" as const,
+    components: [
+      { category: "Consumer Spending", value: "+2.0%", note: "Revised down from +2.3%" },
+      { category: "Business Investment", value: "+1.2%", note: "Capex slowing on uncertainty" },
+      { category: "Government Spending", value: "+0.3%", note: "Major revision down from +1.1%" },
+      { category: "Net Exports", value: "-0.8%", note: "Trade deficit widening on oil imports" },
+      { category: "Inventories", value: "-0.5%", note: "Destocking cycle beginning" },
+    ],
+  },
+};
+
+// ============================================================
 // EXECUTIVE VIEW — Updated post-PCE/GDP release
 // ============================================================
 export const EXECUTIVE_VIEW = `Friday, March 13, 2026 — STAGFLATION CONFIRMED. The 8:30 AM CT data triple-header delivered the worst possible combination: Core PCE +0.4% MoM / +3.1% YoY (hotter than the 3.0% consensus), GDP Q4 second estimate revised DOWN to 0.7% (from 1.4% advance), and JOLTs job openings softening. This is the textbook stagflation print — slowing growth with accelerating inflation — and it materially complicates the Fed's path at next week's FOMC (March 17-18). Brent crude is holding above $100 as Iran pledges to keep the Strait of Hormuz closed; Goldman Sachs has raised its Brent forecast to $100+ for March. S&P 500 futures recovered modestly (+0.4%) on the in-line headline PCE, but the hotter core and GDP downgrade are the dominant signals. The regime is RISK-OFF / MACRO STRESS. For Friday's weekly close: this week marks the third consecutive down week for the S&P 500, down approximately 3% since the Iran war began. Going into next week, the FOMC decision (Wednesday March 18) is the single most important event — Powell's tone on stagflation risk will define Q2 positioning.`;
@@ -239,7 +473,7 @@ export const SEASONAL_CONTEXT = {
 };
 
 // ============================================================
-// TRADING IDEAS — Updated with exact position sizing
+// TRADING IDEAS — Updated with exact position sizing + status tracking
 // ============================================================
 export const TRADING_IDEAS = {
   today: [
@@ -247,6 +481,7 @@ export const TRADING_IDEAS = {
       ticker: "USO",
       direction: "LONG" as const,
       horizon: "INTRADAY" as const,
+      status: "OPEN" as const,
       thesis: "Iran conflict is structural — Brent above $100, Goldman raised forecast to $100+ for March. USO already +23% open P&L in StratModel (250 shares @ $93.72). For new entries: PCE data is in-line on headline, which removes the downside catalyst. Energy momentum is the cleanest trade in this regime.",
       entry: "$114.00–$115.50",
       target: "$119.00–$122.00",
@@ -258,6 +493,7 @@ export const TRADING_IDEAS = {
       ticker: "ADBE",
       direction: "SHORT" as const,
       horizon: "INTRADAY" as const,
+      status: "OPEN" as const,
       thesis: "CEO departure gap-down momentum. ADBE 3/13 puts expire TODAY — StratModel holds ADBE260313P270 (+1) and ADBE260313P255 (-1). The spread is in-the-money. Watch for bounce to $265–$268 resistance for short entry. High relative volume confirms institutional distribution.",
       entry: "$265.00–$268.00 (short on bounce)",
       target: "$255.00–$258.00",
@@ -269,6 +505,7 @@ export const TRADING_IDEAS = {
       ticker: "GUSH",
       direction: "LONG" as const,
       horizon: "INTRADAY" as const,
+      status: "FILLED" as const,
       thesis: "2x leveraged energy ETF. StratModel holds 250 shares @ $34.14 (mark $37.22, +$770 open P&L). With Brent above $100 and Goldman raising forecast, GUSH has momentum for continuation. Trail stop to $35.50 to protect gains.",
       entry: "$37.00–$37.50 (add to existing)",
       target: "$40.00–$42.00",
@@ -282,6 +519,7 @@ export const TRADING_IDEAS = {
       ticker: "UVXY",
       direction: "LONG" as const,
       horizon: "SWING" as const,
+      status: "OPEN" as const,
       thesis: "Acct 370 holds UVXY 4/17 $45/$50 call spread (+3/-3). With FOMC March 17-18 and stagflation confirmed, VIX is likely to remain elevated or spike. UVXY is the cleanest expression of volatility into FOMC. The call spread is already +$88.50 open P&L (+23%). Hold into FOMC — do not close before Wednesday.",
       entry: "Hold existing UVXY 4/17 $45C/$50C spread (Acct 370)",
       target: "UVXY $55–$60 if VIX spikes to 30+ on FOMC",
@@ -293,6 +531,7 @@ export const TRADING_IDEAS = {
       ticker: "GDX",
       direction: "LONG" as const,
       horizon: "SWING" as const,
+      status: "OPEN" as const,
       thesis: "Gold miners as stagflation hedge. Acct 927 holds 100 shares @ $100.05 (-$143 open P&L), Acct 195 holds 50 shares @ $100.265 (-$82 open P&L), Acct 370 holds 150 shares @ $100.339 (-$1,065 open P&L). All three are underwater but the thesis is intact — stagflation (PCE 3.1% + GDP 0.7%) is the best environment for gold. Hold. Acct 370 also has GDX 4/17 $103 calls (+3).",
       entry: "Hold existing positions. Add on pullback to $97.00",
       target: "$104.00–$107.00 (Acct 370 $103 calls become ITM)",
@@ -304,6 +543,7 @@ export const TRADING_IDEAS = {
       ticker: "NVDA",
       direction: "HOLD/MANAGE" as const,
       horizon: "SWING" as const,
+      status: "OPEN" as const,
       thesis: "NVDA is the most complex position across accounts. Acct 927: 400 shares @ $200.70 (-$6,250 open P&L, -7.79%). Acct 195: 25 shares @ $130.98 (+$1,269 open P&L). Acct 676: 20 shares @ $0 (cost unknown, +$3,554 open P&L). Multiple put spreads across accounts provide downside protection. GTC 2026 catalyst is the key upcoming event. Do NOT add in risk-off regime.",
       entry: "No new entries. Manage existing positions.",
       target: "$195.00–$200.00 (Acct 927 break-even)",
@@ -315,6 +555,7 @@ export const TRADING_IDEAS = {
       ticker: "SPY",
       direction: "SHORT HEDGE" as const,
       horizon: "SWING" as const,
+      status: "OPEN" as const,
       thesis: "StratModel holds SPY -50 shares @ $673 (+$341 open P&L) and multiple put spreads. Acct 370 holds SPY 3/20 $654P (+1) and 4/17 $650P/$670P spread. With stagflation confirmed and FOMC risk elevated, the short hedge is correct. SPX key support at 6,500–6,550. A break below 6,500 accelerates toward 6,200–6,300.",
       entry: "Hold existing hedges. StratModel SPY short and put spreads.",
       target: "SPX 6,400–6,500 (put spreads become profitable)",
@@ -328,6 +569,7 @@ export const TRADING_IDEAS = {
       ticker: "PLTR",
       direction: "LONG" as const,
       horizon: "POSITION" as const,
+      status: "OPEN" as const,
       thesis: "Palantir (Account 195) is the standout performer — 40 shares @ $20.92 avg cost, current mark $154.30, open P&L +$5,335 (+637%). Government AI contracts and defense spending narrative is the strongest secular theme in this regime. The Iran conflict and increased defense spending are direct tailwinds. Hold with trailing stop.",
       entry: "Hold existing 40 shares (Acct 195). Do not add at current levels.",
       target: "$165.00–$175.00",
@@ -339,6 +581,7 @@ export const TRADING_IDEAS = {
       ticker: "XLE",
       direction: "LONG" as const,
       horizon: "POSITION" as const,
+      status: "OPEN" as const,
       thesis: "Iran-Hormuz conflict is a multi-week geopolitical event — not resolving in days. XLE up 26.5% YTD. Goldman Sachs raised Brent to $100+ for March. Energy is the only sector with structural momentum in this regime. Hold through FOMC (March 18) — energy is not rate-sensitive in the same way as tech.",
       entry: "$99.50–$101.00 (new entry or add)",
       target: "$105.00–$108.00",
@@ -350,6 +593,7 @@ export const TRADING_IDEAS = {
       ticker: "SLV",
       direction: "HOLD" as const,
       horizon: "POSITION" as const,
+      status: "OPEN" as const,
       thesis: "Silver as stagflation/industrial metals hedge. Acct 195: 75 shares @ $20.61 (+$4,161 open P&L +269%). Acct 676: 5 shares @ $20.61 (+$277). Acct 927: 50 shares @ $100.135 (-$1,202 open P&L — different cost basis). Stagflation environment supports silver. Hold with trailing stop.",
       entry: "Hold existing positions. Acct 195 and 676 are highly profitable.",
       target: "$80.00–$85.00 (Acct 195/676)",

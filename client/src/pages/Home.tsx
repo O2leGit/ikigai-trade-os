@@ -1688,6 +1688,7 @@ function PortfolioReview({ accounts, crossRisks }: { accounts: AccountType[]; cr
 
 function PortfolioAIAdvisor({ accounts, crossRisks }: { accounts: AccountType[]; crossRisks: CrossRiskType[] }) {
   const [showChat, setShowChat] = useState(false);
+  const { MARKET_REGIME, FEAR_GAUGE, KEY_LEVELS } = useDynamicBriefing();
 
   // Build portfolio context string for the AI
   const portfolioContext = useMemo(() => {
@@ -1728,7 +1729,7 @@ function PortfolioAIAdvisor({ accounts, crossRisks }: { accounts: AccountType[];
       lines.push(`  ${r.risk} (${r.accounts}): ${r.exposure} — Mitigation: ${r.mitigation}`);
     }
     return lines.join("\n");
-  }, [accounts, crossRisks]);
+  }, [accounts, crossRisks, MARKET_REGIME, FEAR_GAUGE, KEY_LEVELS]);
 
   const aiChat = useAIChat(portfolioContext);
 

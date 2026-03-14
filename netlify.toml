@@ -2,6 +2,12 @@
   command = "npm run build:client"
   publish = "dist/public"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions."generate-briefing"]
+  timeout = 60
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

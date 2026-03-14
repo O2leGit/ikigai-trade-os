@@ -71,6 +71,31 @@ Your output must be valid JSON matching this exact structure (no markdown, no co
 
 Be specific with numbers, levels, and tickers. Use real market analysis — no generic filler. Write for an experienced options trader who needs actionable intelligence.`;
 
+const YAHOO_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+};
+
+async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=5d&interval=1d`,
+      { headers: YAHOO_HEADERS }
+    );
+    if (!res.ok) return `${name}: HTTP ${res.status}`;
+    const data = await res.json();
+    const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
+    const meta = data.chart?.result?.[0]?.meta;
+    if (!quotes || !meta) return `${name}: No data`;
+    const closes = (quotes.close || []).filter((c: number | null) => c !== null);
+    const lastClose = closes[closes.length - 1];
+    const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
+    const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
+    return `${name}: $${lastClose?.toFixed(2)} (${change}%)`;
+  } catch (err) {
+    return `${name}: ${err instanceof Error ? err.message : "unavailable"}`;
+  }
+}
+
 async function fetchMarketData(): Promise<string> {
   const symbols = [
     { yahoo: "%5EGSPC", name: "S&P 500" },
@@ -84,54 +109,22 @@ async function fetchMarketData(): Promise<string> {
     { yahoo: "IWM", name: "IWM ETF" },
     { yahoo: "DIA", name: "DIA ETF" },
     { yahoo: "GLD", name: "Gold ETF" },
+    { yahoo: "XLE", name: "XLE" },
+    { yahoo: "XLK", name: "XLK" },
+    { yahoo: "XLF", name: "XLF" },
+    { yahoo: "XLV", name: "XLV" },
+    { yahoo: "XLU", name: "XLU" },
+    { yahoo: "XLY", name: "XLY" },
+    { yahoo: "XLP", name: "XLP" },
+    { yahoo: "XLI", name: "XLI" },
+    { yahoo: "XLB", name: "XLB" },
+    { yahoo: "XLRE", name: "XLRE" },
   ];
 
-  const results: string[] = [];
-
-  for (const sym of symbols) {
-    try {
-      const res = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${sym.yahoo}?range=5d&interval=1d`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const meta = data.chart?.result?.[0]?.meta;
-        const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
-        if (meta && quotes) {
-          const closes = quotes.close?.filter((c: number | null) => c !== null) || [];
-          const lastClose = closes[closes.length - 1];
-          const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
-          const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
-          results.push(`${sym.name}: $${lastClose?.toFixed(2)} (${change}%)`);
-        }
-      }
-    } catch {
-      results.push(`${sym.name}: Data unavailable`);
-    }
-  }
-
-  // Fetch sector ETFs
-  const sectorETFs = ["XLE", "XLK", "XLF", "XLV", "XLU", "XLY", "XLP", "XLI", "XLB", "XLRE"];
-  for (const etf of sectorETFs) {
-    try {
-      const res = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${etf}?range=5d&interval=1d`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
-        if (quotes) {
-          const closes = quotes.close?.filter((c: number | null) => c !== null) || [];
-          const lastClose = closes[closes.length - 1];
-          const prevClose = closes.length > 1 ? closes[closes.length - 2] : null;
-          const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
-          results.push(`${etf}: $${lastClose?.toFixed(2)} (${change}%)`);
-        }
-      }
-    } catch {
-      // skip
-    }
-  }
+  // Fetch all in parallel
+  const results = await Promise.all(
+    symbols.map((s) => fetchYahooSymbol(s.yahoo, s.name))
+  );
 
   return results.join("\n");
 }
@@ -234,7 +227,9 @@ Analyze this data and generate the full briefing JSON. Be specific about support
 }
 
 // Schedule: 6:00 AM Central Time daily (11:00 UTC during CDT, 12:00 UTC during CST)
-// Using 12:00 UTC to cover CST (March is CDT transition, but 12 UTC = 6 AM CST / 7 AM CDT)
+// Using 11:00 UTC = 6 AM CDT (March-Nov) / 5 AM CST (Nov-Mar)
 export const config: Config = {
   schedule: "0 11 * * *",
+  path: "/api/generate-briefing",
+  preferStatic: false,
 };

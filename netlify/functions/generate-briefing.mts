@@ -230,6 +230,4 @@ Analyze this data and generate the full briefing JSON. Be specific about support
 // Using 11:00 UTC = 6 AM CDT (March-Nov) / 5 AM CST (Nov-Mar)
 export const config: Config = {
   schedule: "0 11 * * *",
-  path: "/api/generate-briefing",
-  preferStatic: false,
 };

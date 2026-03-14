@@ -13,7 +13,7 @@ const AdminContext = createContext<AdminContextType>({
 });
 
 // SHA-256 hash of the admin password
-const ADMIN_HASH = "ad5e29eae2b17ebc6b81feff6782b4fd5ff3cff3a77dfff656d7fc2ec39de15d";
+const ADMIN_HASH = "47e50d1abc9d70278b6634d5f95f62b9807ee21ed194825a979028b2472eef62";
 
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();

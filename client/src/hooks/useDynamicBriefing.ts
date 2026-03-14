@@ -62,9 +62,19 @@ export function useDynamicBriefing() {
   const fetchBriefing = useCallback(async () => {
     try {
       const res = await fetch("/.netlify/functions/get-briefing");
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        // Dev server returns HTML for unknown routes — silently use static
+        setMeta((prev) => ({
+          ...prev,
+          isLive: false,
+          isLoading: false,
+          lastChecked: new Date().toISOString(),
+        }));
+        return;
+      }
       if (!res.ok) {
         if (res.status === 404) {
-          // No live briefing yet — use static
           setMeta((prev) => ({
             ...prev,
             isLive: false,

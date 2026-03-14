@@ -70,11 +70,14 @@ import {
   Layers,
   RefreshCw,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { TickerStrip } from "@/components/TickerStrip";
 import { RegimeBadge } from "@/components/RegimeBadge";
 import { ConvictionBadge } from "@/components/ConvictionBadge";
 import { ImpactBadge } from "@/components/ImpactBadge";
+import { AIChatBox } from "@/components/AIChatBox";
+import { useAIChat } from "@/hooks/useAIChat";
 
 
 // ─── NAV ITEMS (Layered Architecture) ────────────────────────
@@ -1655,6 +1658,119 @@ function PortfolioReview({ accounts, crossRisks }: { accounts: AccountType[]; cr
           ))}
         </div>
       </div>
+
+      {/* AI Portfolio Advisor */}
+      <PortfolioAIAdvisor accounts={accounts} crossRisks={crossRisks} />
+    </div>
+  );
+}
+
+function PortfolioAIAdvisor({ accounts, crossRisks }: { accounts: AccountType[]; crossRisks: CrossRiskType[] }) {
+  const [showChat, setShowChat] = useState(false);
+
+  // Build portfolio context string for the AI
+  const portfolioContext = useMemo(() => {
+    const lines: string[] = [];
+    lines.push(`Market Regime: ${MARKET_REGIME.classification}`);
+    lines.push(`Market Description: ${MARKET_REGIME.description}`);
+    lines.push(`VIX: ${FEAR_GAUGE.vix} (${FEAR_GAUGE.vixChange})`);
+    lines.push(`Fear Level: ${FEAR_GAUGE.fearLevel}`);
+    lines.push(`IV Rank: ${FEAR_GAUGE.ivRank}`);
+    lines.push(`Put/Call Ratio: ${FEAR_GAUGE.putCallRatio}`);
+    lines.push("");
+    lines.push("Key Technical Levels:");
+    for (const lvl of KEY_LEVELS) {
+      lines.push(`  ${lvl.symbol}: ${lvl.price} (${lvl.change}) S:${lvl.support} R:${lvl.resistance} Trend:${lvl.trend}`);
+    }
+    lines.push("");
+    lines.push("Portfolio Accounts:");
+    for (const a of accounts) {
+      lines.push(`\n--- ${a.name} (${a.type}) ---`);
+      lines.push(`NLV: ${a.nlv} | Open P&L: ${a.openPnl} | YTD P&L: ${a.ytdPnl}`);
+      lines.push(`Summary: ${a.summary}`);
+      if (a.positions.length > 0) {
+        lines.push("Equity Positions:");
+        for (const p of a.positions) {
+          lines.push(`  ${p.symbol}: ${p.qty} shares @ ${p.avgCost} | Mark: ${p.mark} | P&L: ${p.openPnl} | Action: ${p.action}`);
+        }
+      }
+      if (a.options.length > 0) {
+        lines.push("Options Positions:");
+        for (const o of a.options) {
+          lines.push(`  ${o.code} | Exp: ${o.exp} | Net: ${o.net} | Action: ${o.action}`);
+        }
+      }
+      lines.push(`Key Risk: ${a.keyRisk}`);
+    }
+    lines.push("\nCross-Account Risks:");
+    for (const r of crossRisks) {
+      lines.push(`  ${r.risk} (${r.accounts}): ${r.exposure} — Mitigation: ${r.mitigation}`);
+    }
+    return lines.join("\n");
+  }, [accounts, crossRisks]);
+
+  const aiChat = useAIChat(portfolioContext);
+
+  const suggestedPrompts = [
+    "Analyze my portfolio risk given current market conditions",
+    "What positions should I adjust or close this week?",
+    "Suggest hedges for my concentrated NVDA exposure",
+    "What new trade ideas complement my current positions?",
+    "Rate my overall portfolio positioning for a stagflation environment",
+  ];
+
+  return (
+    <div className="mt-4">
+      <button
+        onClick={() => setShowChat(v => !v)}
+        className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
+          showChat
+            ? "border-primary/40 bg-primary/5"
+            : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-display font-bold text-foreground">AI Portfolio Advisor</p>
+            <p className="text-[10px] text-muted-foreground">Ask questions about your positions, get trade suggestions, analyze risk</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {aiChat.messages.length > 0 && (
+            <span className="text-[10px] font-mono text-primary px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30">
+              {aiChat.messages.filter(m => m.role === "assistant").length} responses
+            </span>
+          )}
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showChat ? "" : "-rotate-90"}`} />
+        </div>
+      </button>
+
+      {showChat && (
+        <div className="mt-3 rounded-lg border border-primary/20 bg-card overflow-hidden">
+          <AIChatBox
+            messages={aiChat.messages}
+            onSendMessage={aiChat.sendMessage}
+            isLoading={aiChat.isLoading}
+            placeholder="Ask about your portfolio, positions, or trade ideas..."
+            height="500px"
+            emptyStateMessage="Ask me anything about your portfolio. I have full context on your positions, market conditions, and current regime."
+            suggestedPrompts={suggestedPrompts}
+          />
+          {aiChat.messages.length > 0 && (
+            <div className="px-4 py-2 border-t border-border/50 flex justify-end">
+              <button
+                onClick={aiChat.clearChat}
+                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded border border-border hover:border-primary/30"
+              >
+                Clear conversation
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

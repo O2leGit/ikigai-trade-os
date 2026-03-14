@@ -195,7 +195,15 @@ export default function Home() {
                 <span className="hidden sm:inline">Archive</span>
               </button>
             </Link>
-            {!isAdmin && (
+            {isAdmin ? (
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 text-xs text-primary hover:text-foreground transition-colors px-2.5 py-1.5 rounded border border-primary/40 hover:border-primary"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            ) : (
               <Link href="/admin">
                 <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded border border-border hover:border-primary/40">
                   <Lock className="w-3.5 h-3.5" />

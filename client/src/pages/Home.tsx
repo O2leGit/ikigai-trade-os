@@ -23,6 +23,10 @@ import {
   WEEKLY_THESIS_SCORECARD,
   SCENARIO_MATRIX,
   ECONOMIC_DATA_BREAKDOWN,
+  AI_SUMMARY,
+  KEY_LEVELS,
+  FEAR_GAUGE,
+  DEEP_DIVE_TOOLS,
 } from "@/lib/briefingData";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useLiveData } from "@/hooks/useLiveData";
@@ -59,6 +63,13 @@ import {
   Crosshair,
   BarChart,
   FileText,
+  Brain,
+  Gauge,
+  ExternalLink,
+  ChevronDown,
+  Layers,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { TickerStrip } from "@/components/TickerStrip";
 import { RegimeBadge } from "@/components/RegimeBadge";
@@ -66,25 +77,34 @@ import { ConvictionBadge } from "@/components/ConvictionBadge";
 import { ImpactBadge } from "@/components/ImpactBadge";
 
 
-// ─── NAV ITEMS ───────────────────────────────────────────────
-const BASE_NAV_ITEMS = [
-  { id: "executive-view", label: "Executive View", icon: <Zap className="w-4 h-4" /> },
-  { id: "overnight-developments", label: "Overnight Developments", icon: <Clock className="w-4 h-4" /> },
-  { id: "market-environment", label: "Market Environment", icon: <BarChart2 className="w-4 h-4" /> },
-  { id: "crisis-status", label: "Crisis Status", icon: <Globe className="w-4 h-4" /> },
-  { id: "news-sentiment", label: "News & Sentiment", icon: <Activity className="w-4 h-4" /> },
-  { id: "event-calendar", label: "Event Risk Calendar", icon: <Calendar className="w-4 h-4" /> },
-  { id: "economic-data", label: "Economic Data", icon: <FileText className="w-4 h-4" /> },
-  { id: "sector-rotation", label: "Sector Rotation", icon: <TrendingUp className="w-4 h-4" /> },
-  { id: "seasonal-context", label: "Seasonal Context", icon: <BookOpen className="w-4 h-4" /> },
-  { id: "prior-grades", label: "Prior Session Grades", icon: <Activity className="w-4 h-4" /> },
-  { id: "weekly-thesis", label: "Weekly Thesis", icon: <Crosshair className="w-4 h-4" /> },
-  { id: "scenario-matrix", label: "Scenario Matrix", icon: <BarChart className="w-4 h-4" /> },
-  { id: "earnings-plays", label: "Earnings Plays", icon: <DollarSign className="w-4 h-4" /> },
-  { id: "trading-ideas", label: "Trading Ideas", icon: <Target className="w-4 h-4" /> },
+// ─── NAV ITEMS (Layered Architecture) ────────────────────────
+type NavItem = { id: string; label: string; icon: React.ReactNode; layer?: string };
+
+const BASE_NAV_ITEMS: NavItem[] = [
+  // Layer 1: AI Intelligence
+  { id: "ai-summary", label: "AI Summary", icon: <Brain className="w-4 h-4" />, layer: "Intelligence" },
+  // Layer 2: Priority Dashboard
+  { id: "priority-dashboard", label: "Priority Dashboard", icon: <Gauge className="w-4 h-4" />, layer: "At a Glance" },
+  { id: "decision-summary", label: "Decision Summary", icon: <Shield className="w-4 h-4" />, layer: "At a Glance" },
+  // Layer 3: Full Analysis
+  { id: "executive-view", label: "Executive View", icon: <Zap className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "overnight-developments", label: "Overnight Developments", icon: <Clock className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "market-environment", label: "Market Environment", icon: <BarChart2 className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "crisis-status", label: "Crisis Status", icon: <Globe className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "news-sentiment", label: "News & Sentiment", icon: <Activity className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "event-calendar", label: "Event Risk Calendar", icon: <Calendar className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "economic-data", label: "Economic Data", icon: <FileText className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "sector-rotation", label: "Sector Rotation", icon: <TrendingUp className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "seasonal-context", label: "Seasonal Context", icon: <BookOpen className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "prior-grades", label: "Prior Session Grades", icon: <Activity className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "weekly-thesis", label: "Weekly Thesis", icon: <Crosshair className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "scenario-matrix", label: "Scenario Matrix", icon: <BarChart className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "earnings-plays", label: "Earnings Plays", icon: <DollarSign className="w-4 h-4" />, layer: "Full Analysis" },
+  { id: "trading-ideas", label: "Trading Ideas", icon: <Target className="w-4 h-4" />, layer: "Full Analysis" },
+  // Layer 4: Deep Dive
+  { id: "deep-dive", label: "Deep Dive Tools", icon: <ExternalLink className="w-4 h-4" />, layer: "Deep Dive" },
 ];
-const PORTFOLIO_NAV_ITEM = { id: "portfolio-review", label: "Portfolio Review", icon: <Briefcase className="w-4 h-4" /> };
-const DECISION_NAV_ITEM = { id: "decision-summary", label: "Decision Summary", icon: <Shield className="w-4 h-4" /> };
+const PORTFOLIO_NAV_ITEM: NavItem = { id: "portfolio-review", label: "Portfolio Review", icon: <Briefcase className="w-4 h-4" />, layer: "At a Glance" };
 
 // ─── HELPERS ─────────────────────────────────────────────────
 function scrollToSection(id: string) {
@@ -155,10 +175,16 @@ export default function Home() {
       }))
     : SECTOR_ROTATION;
 
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const toggleCollapse = (id: string) => setCollapsedSections(prev => ({ ...prev, [id]: !prev[id] }));
+
   const NAV_ITEMS = useMemo(() => {
     const items = [...BASE_NAV_ITEMS];
-    if (isAdmin) items.push(PORTFOLIO_NAV_ITEM);
-    items.push(DECISION_NAV_ITEM);
+    if (isAdmin) {
+      // Insert portfolio after decision-summary
+      const idx = items.findIndex(i => i.id === "decision-summary");
+      items.splice(idx + 1, 0, PORTFOLIO_NAV_ITEM);
+    }
     return items;
   }, [isAdmin]);
 
@@ -268,23 +294,34 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Nav items */}
+          {/* Nav items grouped by layer */}
           <nav className="flex-1 overflow-y-auto py-2">
-            {NAV_ITEMS.map(({ id, label, icon }) => (
-              <button
-                key={id}
-                onClick={() => { scrollToSection(id); setSidebarOpen(false); }}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left
-                  ${activeSection === id
-                    ? "bg-primary/10 text-foreground font-semibold border-r-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"}
-                `}
-              >
-                <span className={activeSection === id ? "text-primary" : ""}>{icon}</span>
-                {label}
-              </button>
-            ))}
+            {(() => {
+              let lastLayer = "";
+              return NAV_ITEMS.map(({ id, label, icon, layer }) => {
+                const showLabel = layer && layer !== lastLayer;
+                if (layer) lastLayer = layer;
+                return (
+                  <div key={id}>
+                    {showLabel && (
+                      <p className="px-4 pt-4 pb-1 text-[9px] text-primary/60 uppercase tracking-[0.2em] font-bold">{layer}</p>
+                    )}
+                    <button
+                      onClick={() => { scrollToSection(id); setSidebarOpen(false); }}
+                      className={`
+                        w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors text-left
+                        ${activeSection === id
+                          ? "bg-primary/10 text-foreground font-semibold border-r-2 border-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"}
+                      `}
+                    >
+                      <span className={activeSection === id ? "text-primary" : ""}>{icon}</span>
+                      {label}
+                    </button>
+                  </div>
+                );
+              });
+            })()}
           </nav>
 
           {/* Archive + Upload links */}
@@ -366,18 +403,151 @@ export default function Home() {
               <RegimeBadge classification={MARKET_REGIME.classification} size="lg" />
             </div>
 
-            {/* ── 01 EXECUTIVE VIEW ── */}
-            <section id="executive-view" className="scroll-mt-16">
-              <SectionTitle number="01" icon={<Zap className="w-4 h-4" />} title="Executive Market View" />
-              <div className="mt-4 p-5 rounded-lg border border-border bg-card">
-                <p className="text-sm leading-relaxed text-foreground/90">{EXECUTIVE_VIEW}</p>
+            {/* ═══════════════════════════════════════════════════════ */}
+            {/* LAYER 1: AI INTELLIGENCE SUMMARY                       */}
+            {/* ═══════════════════════════════════════════════════════ */}
+            <section id="ai-summary" className="scroll-mt-16">
+              <AIIntelligenceSummary />
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════ */}
+            {/* LAYER 2: PRIORITY DASHBOARD — "At a Glance"            */}
+            {/* ═══════════════════════════════════════════════════════ */}
+            <section id="priority-dashboard" className="scroll-mt-16">
+              <LayerHeader layer="2" title="Priority Dashboard" subtitle="Key metrics at a glance" icon={<Gauge className="w-5 h-5" />} />
+
+              {/* Key Technical Levels */}
+              <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {KEY_LEVELS.map((lvl) => (
+                  <div key={lvl.symbol} className="p-4 rounded-lg border border-border bg-card">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-lg font-mono font-bold text-primary">{lvl.symbol}</span>
+                      <span className={`text-xs font-mono font-bold ${lvl.direction === "up" ? "text-bull" : "text-bear"}`}>{lvl.change}</span>
+                    </div>
+                    <p className="text-2xl font-mono font-bold text-foreground mb-2">{lvl.price}</p>
+                    <div className="flex justify-between text-[10px] font-mono">
+                      <span className="text-bull">S: {lvl.support}</span>
+                      <span className="text-bear">R: {lvl.resistance}</span>
+                    </div>
+                    <p className={`text-[10px] font-mono mt-1 ${lvl.trend === "Bullish" ? "text-bull" : "text-bear"}`}>{lvl.trend}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Fear / Sentiment Composite + Today's Calendar */}
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Fear Gauge */}
+                <div className="p-4 rounded-lg border border-border bg-card">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-3">Fear & Sentiment Composite</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">VIX</p>
+                      <p className={`text-2xl font-mono font-bold ${FEAR_GAUGE.vixTrend === "up" ? "text-bear" : "text-bull"}`}>{FEAR_GAUGE.vix}</p>
+                      <p className={`text-[10px] font-mono ${FEAR_GAUGE.vixTrend === "up" ? "text-bear" : "text-bull"}`}>{FEAR_GAUGE.vixChange}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Put/Call Ratio</p>
+                      <p className="text-2xl font-mono font-bold text-foreground">{FEAR_GAUGE.putCallRatio}</p>
+                      <p className="text-[10px] font-mono text-yellow-400">{FEAR_GAUGE.putCallSignal}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">IV Rank</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-2xl font-mono font-bold text-foreground">{FEAR_GAUGE.ivRank}</p>
+                        <div className="flex-1 h-2 rounded-full bg-secondary/40 overflow-hidden">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${FEAR_GAUGE.ivRank}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Fear Level</p>
+                      <span className={`text-sm font-mono font-bold px-2.5 py-1 rounded border ${
+                        FEAR_GAUGE.fearLevel === "EXTREME" ? "text-bear border-bear/40 bg-bear/10 animate-pulse" :
+                        FEAR_GAUGE.fearLevel === "ELEVATED" ? "text-orange-400 border-orange-500/40 bg-orange-900/10" :
+                        FEAR_GAUGE.fearLevel === "NORMAL" ? "text-bull border-bull/40 bg-bull/10" :
+                        "text-yellow-400 border-yellow-600/40 bg-yellow-900/10"
+                      }`}>{FEAR_GAUGE.fearLevel}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Today's Key Events (filtered from calendar) */}
+                <div className="p-4 rounded-lg border border-border bg-card">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-3">Today's Key Events</p>
+                  <div className="space-y-2">
+                    {displayCalendar.slice(0, 4).map((ev, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <span className="text-[10px] font-mono text-muted-foreground w-16 flex-shrink-0 pt-0.5">{ev.time}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-semibold text-foreground truncate">{ev.event}</p>
+                            <ImpactBadge impact={ev.impact} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Major Indices Snapshot */}
+              <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-1.5">
+                {displayMarketSnapshot.map((item) => (
+                  <div key={item.asset} className="p-2 rounded-lg border border-border bg-card text-center">
+                    <p className="text-[8px] text-muted-foreground uppercase tracking-wider mb-0.5 truncate">{item.asset}</p>
+                    <p className="font-mono text-xs font-semibold text-foreground">{item.level}</p>
+                    <p className={`font-mono text-[10px] ${item.direction === "up" ? "text-bull" : item.direction === "down" ? "text-bear" : "text-muted-foreground"}`}>
+                      {item.direction === "up" ? "▲" : item.direction === "down" ? "▼" : "–"} {item.change}
+                    </p>
+                  </div>
+                ))}
               </div>
             </section>
 
-            {/* ── 02 OVERNIGHT DEVELOPMENTS ── */}
-            <section id="overnight-developments" className="scroll-mt-16">
-              <SectionTitle number="02" icon={<Clock className="w-4 h-4" />} title="Overnight Developments" />
-              <div className="mt-4 space-y-2">
+            {/* ── DECISION SUMMARY (moved to Layer 2) ── */}
+            <section id="decision-summary" className="scroll-mt-16">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-4 rounded-lg border border-bull/20 bg-bull/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-4 h-4 text-bull" />
+                    <p className="text-[10px] text-bull uppercase tracking-wider font-semibold">Best Opportunity Today</p>
+                  </div>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{DECISION_SUMMARY.bestOpportunityToday}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] text-primary uppercase tracking-wider font-semibold">Best Swing This Week</p>
+                  </div>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{DECISION_SUMMARY.bestSwingIdeaThisWeek}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-bear/20 bg-bear/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-bear" />
+                    <p className="text-[10px] text-bear uppercase tracking-wider font-semibold">Biggest Risk to Watch</p>
+                  </div>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{DECISION_SUMMARY.biggestRiskToWatch}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════ */}
+            {/* LAYER 3: FULL DATA MODULES                             */}
+            {/* ═══════════════════════════════════════════════════════ */}
+            <div className="pt-4 border-t border-border">
+              <LayerHeader layer="3" title="Full Analysis" subtitle="Detailed market data modules" icon={<Layers className="w-5 h-5" />} />
+            </div>
+
+            {/* ── EXECUTIVE VIEW ── */}
+            <CollapsibleSection id="executive-view" title="Executive Market View" icon={<Zap className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse}>
+              <div className="p-5 rounded-lg border border-border bg-card">
+                <p className="text-sm leading-relaxed text-foreground/90">{EXECUTIVE_VIEW}</p>
+              </div>
+            </CollapsibleSection>
+
+            {/* ── OVERNIGHT DEVELOPMENTS ── */}
+            <CollapsibleSection id="overnight-developments" title="Overnight Developments" icon={<Clock className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse}>
+              <div className="space-y-2">
                 {OVERNIGHT_DEVELOPMENTS.map((dev, i) => (
                   <div key={i} className="flex gap-4 p-4 rounded-lg border border-border bg-card">
                     <div className="flex-shrink-0 w-24 text-right">
@@ -402,25 +572,12 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 03 MARKET ENVIRONMENT ── */}
-            <section id="market-environment" className="scroll-mt-16">
-              <SectionTitle number="03" icon={<BarChart2 className="w-4 h-4" />} title="Market Environment" />
-              {/* Snapshot grid */}
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-4">
-                {displayMarketSnapshot.map((item) => (
-                  <div key={item.asset} className="p-3 rounded-lg border border-border bg-card text-center">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 truncate">{item.asset}</p>
-                    <p className="font-mono text-sm font-semibold text-foreground">{item.level}</p>
-                    <p className={`font-mono text-[10px] mt-0.5 ${item.direction === "up" ? "text-bull" : item.direction === "down" ? "text-bear" : "text-muted-foreground"}`}>
-                      {item.direction === "up" ? "▲" : item.direction === "down" ? "▼" : "–"} {item.change}
-                    </p>
-                  </div>
-                ))}
-              </div>
+            {/* ── MARKET ENVIRONMENT ── */}
+            <CollapsibleSection id="market-environment" title="Market Environment" icon={<BarChart2 className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
               {/* Macro conditions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
                 {MACRO_CONDITIONS.map((cond) => (
                   <div key={cond.title} className="p-4 rounded-lg border border-border bg-card">
                     <div className="flex items-center justify-between mb-2">
@@ -437,7 +594,7 @@ export default function Home() {
                 ))}
               </div>
               {/* Regime panel */}
-              <div className="mt-4 p-5 rounded-lg border border-primary/20 bg-primary/5">
+              <div className="p-5 rounded-lg border border-primary/20 bg-primary/5">
                 <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                   <div className="flex-1">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Market Regime</p>
@@ -457,12 +614,11 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 04 CRISIS / GEOPOLITICAL STATUS ── */}
-            <section id="crisis-status" className="scroll-mt-16">
-              <SectionTitle number="04" icon={<Globe className="w-4 h-4" />} title="Crisis / Geopolitical Status" />
-              <div className="mt-4 space-y-4">
+            {/* ── CRISIS / GEOPOLITICAL STATUS ── */}
+            <CollapsibleSection id="crisis-status" title="Crisis / Geopolitical Status" icon={<Globe className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse} accent="bear">
+              <div className="space-y-4">
                 {/* Threat level banner */}
                 <div className={`p-5 rounded-lg border-2 ${
                   CRISIS_STATUS.threatLevel === "CRITICAL" ? "border-bear bg-bear/5" :
@@ -512,12 +668,11 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 05 NEWS & SENTIMENT ── */}
-            <section id="news-sentiment" className="scroll-mt-16">
-              <SectionTitle number="05" icon={<Activity className="w-4 h-4" />} title="News & Sentiment Signals" />
-              <div className="mt-4 space-y-3">
+            {/* ── NEWS & SENTIMENT ── */}
+            <CollapsibleSection id="news-sentiment" title="News & Sentiment Signals" icon={<Activity className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
+              <div className="space-y-3">
                 {displayNews.map((signal, i) => (
                   <div key={i} className="p-4 rounded-lg border border-border bg-card">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -564,12 +719,11 @@ export default function Home() {
                   <p className="text-xs text-foreground/80 italic">{SENTIMENT_SUMMARY.keyTheme}</p>
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 06 EVENT RISK CALENDAR ── */}
-            <section id="event-calendar" className="scroll-mt-16">
-              <SectionTitle number="06" icon={<Calendar className="w-4 h-4" />} title="Event Risk Calendar" />
-              <div className="mt-4 space-y-2">
+            {/* ── EVENT RISK CALENDAR ── */}
+            <CollapsibleSection id="event-calendar" title="Event Risk Calendar" icon={<Calendar className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
+              <div className="space-y-2">
                 {displayCalendar.map((ev, i) => (
                   <div key={i} className="flex gap-4 p-4 rounded-lg border border-border bg-card">
                     <div className="flex-shrink-0 w-24 text-right">
@@ -586,12 +740,11 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 07 ECONOMIC DATA BREAKDOWN ── */}
-            <section id="economic-data" className="scroll-mt-16">
-              <SectionTitle number="07" icon={<FileText className="w-4 h-4" />} title="Economic Data Breakdown" />
-              <div className="mt-4 space-y-4">
+            {/* ── ECONOMIC DATA BREAKDOWN ── */}
+            <CollapsibleSection id="economic-data" title="Economic Data Breakdown" icon={<FileText className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
+              <div className="space-y-4">
                 {/* PCE Headline vs Core */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="p-4 rounded-lg border border-border bg-card">
@@ -690,17 +843,15 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 08 SECTOR ROTATION ── */}
-            <section id="sector-rotation" className="scroll-mt-16">
-              <SectionTitle number="08" icon={<TrendingUp className="w-4 h-4" />} title="Sector Rotation" />
+            {/* ── SECTOR ROTATION ── */}
+            <CollapsibleSection id="sector-rotation" title="Sector Rotation" icon={<TrendingUp className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
               <SectorHeatmap sectors={displaySectors} />
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 09 SEASONAL CONTEXT ── */}
-            <section id="seasonal-context" className="scroll-mt-16">
-              <SectionTitle number="09" icon={<BookOpen className="w-4 h-4" />} title="Seasonal Context" />
+            {/* ── SEASONAL CONTEXT ── */}
+            <CollapsibleSection id="seasonal-context" title="Seasonal Context" icon={<BookOpen className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
               <div className="mt-4 space-y-3">
                 <div className="p-4 rounded-lg border border-border bg-card">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{SEASONAL_CONTEXT.period}</p>
@@ -729,11 +880,10 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 10 PRIOR SESSION GRADES ── */}
-            <section id="prior-grades" className="scroll-mt-16">
-              <SectionTitle number="10" icon={<Activity className="w-4 h-4" />} title="Prior Session Grades" />
+            {/* ── PRIOR SESSION GRADES ── */}
+            <CollapsibleSection id="prior-grades" title="Prior Session Grades" icon={<Activity className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
               <div className="mt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <p className="text-xs text-muted-foreground">Session: {PRIOR_SESSION_GRADES.date}</p>
@@ -759,11 +909,10 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 11 WEEKLY THESIS SCORECARD ── */}
-            <section id="weekly-thesis" className="scroll-mt-16">
-              <SectionTitle number="11" icon={<Crosshair className="w-4 h-4" />} title="Weekly Thesis Scorecard" />
+            {/* ── WEEKLY THESIS SCORECARD ── */}
+            <CollapsibleSection id="weekly-thesis" title="Weekly Thesis Scorecard" icon={<Crosshair className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
               <div className="mt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <p className="text-xs text-muted-foreground">Week of: {WEEKLY_THESIS_SCORECARD.weekOf}</p>
@@ -816,11 +965,10 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 12 SCENARIO PROBABILITY MATRIX ── */}
-            <section id="scenario-matrix" className="scroll-mt-16">
-              <SectionTitle number="12" icon={<BarChart className="w-4 h-4" />} title="Forward Scenario Matrix" />
+            {/* ── SCENARIO PROBABILITY MATRIX ── */}
+            <CollapsibleSection id="scenario-matrix" title="Forward Scenario Matrix" icon={<BarChart className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
               <div className="mt-4 space-y-3">
                 {SCENARIO_MATRIX.map((sc, i) => (
                   <div key={i} className="p-4 rounded-lg border border-border bg-card overflow-hidden">
@@ -876,11 +1024,10 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 13 EARNINGS PLAYS ── */}
-            <section id="earnings-plays" className="scroll-mt-16">
-              <SectionTitle number="13" icon={<DollarSign className="w-4 h-4" />} title="Earnings Plays" />
+            {/* ── EARNINGS PLAYS ── */}
+            <CollapsibleSection id="earnings-plays" title="Earnings Plays" icon={<DollarSign className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
               <div className="mt-4 space-y-4">
                 {EARNINGS_PLAYS.map((ep) => (
                   <div key={ep.ticker} className="p-4 rounded-lg border border-border bg-card">
@@ -917,11 +1064,10 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 14 TRADING IDEAS ── */}
-            <section id="trading-ideas" className="scroll-mt-16">
-              <SectionTitle number="14" icon={<Target className="w-4 h-4" />} title="Trading Ideas" />
+            {/* ── TRADING IDEAS ── */}
+            <CollapsibleSection id="trading-ideas" title="Trading Ideas" icon={<Target className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse}>
 
               {/* TODAY */}
               <div className="mt-4">
@@ -961,41 +1107,39 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* ── 15 PORTFOLIO REVIEW (admin only) ── */}
+            {/* ── PORTFOLIO REVIEW (admin only) ── */}
             {isAdmin && (
-             <section id="portfolio-review" className="scroll-mt-16">
-              <SectionTitle number="15" icon={<Briefcase className="w-4 h-4" />} title="Portfolio Review" />
-              <PortfolioReview accounts={ACCOUNTS} crossRisks={CROSS_ACCOUNT_RISKS} />
-            </section>
+              <CollapsibleSection id="portfolio-review" title="Portfolio Review" icon={<Briefcase className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse}>
+                <PortfolioReview accounts={ACCOUNTS} crossRisks={CROSS_ACCOUNT_RISKS} />
+              </CollapsibleSection>
             )}
 
-            {/* ── 16 DECISION SUMMARY ── */}
-            <section id="decision-summary" className="scroll-mt-16 pb-16">
-              <SectionTitle number="16" icon={<Shield className="w-4 h-4" />} title="Decision Summary" />
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg border border-bull/20 bg-bull/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="w-4 h-4 text-bull" />
-                    <p className="text-[10px] text-bull uppercase tracking-wider font-semibold">Best Opportunity Today</p>
-                  </div>
-                  <p className="text-xs text-foreground/80 leading-relaxed">{DECISION_SUMMARY.bestOpportunityToday}</p>
-                </div>
-                <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    <p className="text-[10px] text-primary uppercase tracking-wider font-semibold">Best Swing This Week</p>
-                  </div>
-                  <p className="text-xs text-foreground/80 leading-relaxed">{DECISION_SUMMARY.bestSwingIdeaThisWeek}</p>
-                </div>
-                <div className="p-4 rounded-lg border border-bear/20 bg-bear/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-4 h-4 text-bear" />
-                    <p className="text-[10px] text-bear uppercase tracking-wider font-semibold">Biggest Risk to Watch</p>
-                  </div>
-                  <p className="text-xs text-foreground/80 leading-relaxed">{DECISION_SUMMARY.biggestRiskToWatch}</p>
-                </div>
+            {/* ═══════════════════════════════════════════════════════ */}
+            {/* LAYER 4: DEEP DIVE                                     */}
+            {/* ═══════════════════════════════════════════════════════ */}
+            <section id="deep-dive" className="scroll-mt-16 pb-16">
+              <div className="pt-4 border-t border-border">
+                <LayerHeader layer="4" title="Deep Dive" subtitle="External analysis tools" icon={<ExternalLink className="w-5 h-5" />} />
+              </div>
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {DEEP_DIVE_TOOLS.map((tool) => (
+                  <a
+                    key={tool.name}
+                    href={tool.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group p-4 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <span className="text-[9px] font-mono text-primary/60 uppercase tracking-wider">{tool.category}</span>
+                      <ExternalLink className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{tool.name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{tool.description}</p>
+                  </a>
+                ))}
               </div>
             </section>
 
@@ -1003,6 +1147,120 @@ export default function Home() {
         </main>
       </div>
     </div>
+  );
+}
+
+// ─── LAYER COMPONENTS ───────────────────────────────────────
+
+function AIIntelligenceSummary() {
+  const [collapsed, setCollapsed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const genTime = new Date(AI_SUMMARY.generatedAt);
+  const now = new Date();
+  const minsAgo = Math.floor((now.getTime() - genTime.getTime()) / 60000);
+  const timeAgo = minsAgo < 60 ? `${minsAgo}m ago` : `${Math.floor(minsAgo / 60)}h ago`;
+
+  return (
+    <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-primary/20 bg-primary/5">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
+            <Brain className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-sm font-display font-bold text-foreground">AI Intelligence Summary</h2>
+            <p className="text-[10px] text-muted-foreground font-mono">
+              Generated {timeAgo} · {genTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 1500); }}
+            className="p-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+            title="Refresh summary"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={() => setCollapsed(v => !v)}
+            className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          >
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${collapsed ? "-rotate-90" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {!collapsed && (
+        <div className="px-5 py-4 space-y-3">
+          {refreshing ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="space-y-2 animate-pulse">
+                  <div className="h-3 bg-secondary/60 rounded w-full" />
+                  <div className="h-3 bg-secondary/40 rounded w-11/12" />
+                  <div className="h-3 bg-secondary/30 rounded w-4/5" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            AI_SUMMARY.paragraphs.map((p, i) => (
+              <p key={i} className="text-sm leading-relaxed text-foreground/85">{p}</p>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LayerHeader({ layer, title, subtitle, icon }: { layer: string; title: string; subtitle: string; icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mb-2">
+      <div className="flex items-center justify-center w-7 h-7 rounded-md bg-primary/10 border border-primary/30 text-primary">
+        {icon}
+      </div>
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-mono text-primary/60 uppercase tracking-widest">Layer {layer}</span>
+          <h2 className="text-base font-display font-bold text-foreground">{title}</h2>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  id, title, icon, children, defaultOpen = false, collapsed, onToggle, accent,
+}: {
+  id: string; title: string; icon: React.ReactNode; children: React.ReactNode;
+  defaultOpen?: boolean; collapsed: Record<string, boolean>; onToggle: (id: string) => void;
+  accent?: "bear" | "bull" | "primary";
+}) {
+  const isOpen = collapsed[id] === undefined ? defaultOpen : !collapsed[id];
+  const accentBorder = accent === "bear" ? "border-l-bear" : accent === "bull" ? "border-l-bull" : "border-l-primary/30";
+
+  return (
+    <section id={id} className={`scroll-mt-16 rounded-lg border border-border bg-card/50 overflow-hidden border-l-2 ${accentBorder}`}>
+      <button
+        onClick={() => onToggle(id)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-primary">{icon}</span>
+          <h2 className="text-sm font-display font-bold text-foreground tracking-tight">{title}</h2>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+      </button>
+      {isOpen && (
+        <div className="px-4 pb-4">
+          {children}
+        </div>
+      )}
+    </section>
   );
 }
 

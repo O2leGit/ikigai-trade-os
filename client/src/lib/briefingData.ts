@@ -7,6 +7,52 @@ export const BRIEFING_DATE = "Friday, March 13, 2026";
 export const BRIEFING_EDITION = "Vol. I — Issue 003";
 
 // ============================================================
+// AI INTELLIGENCE SUMMARY — Layer 1
+// ============================================================
+export const AI_SUMMARY = {
+  generatedAt: "2026-03-13T06:45:00-05:00",
+  paragraphs: [
+    "Overnight was dominated by Iran doubling down on the Strait of Hormuz blockade, sending Brent above $100 for the first time since 2022. Asian and European markets sold off hard on stagflation fears, with the Nikkei dropping 2.1% and STOXX 600 losing 1.3%. Goldman and Bank of America both raised their crude targets, signaling this is no longer a short-term supply shock — it's structural.",
+    "The 8:30 AM data confirmed the worst-case macro scenario: Core PCE printed hot at +3.1% YoY (above the 3.0% consensus) while GDP was revised sharply lower to 0.7% from 1.4%. This is textbook stagflation — rising prices with decelerating growth. The Fed is now trapped between inflation that demands tightening and an economy that can't absorb it. Rate cut expectations for June have collapsed from 75% to under 40%.",
+    "Today's playbook is defensive. VIX at 25.83 signals elevated fear but not yet panic — the 30+ level would trigger a regime shift to full crisis mode. Key levels to watch: SPX 5,750 support (break below opens 5,600), QQQ $475 (weekly VWAP), and WTI $95 resistance. Best opportunities are in energy longs (XLE calls), volatility plays (VIX call spreads), and defensive hedges via put spreads on tech. Avoid bottom-fishing — the stagflation narrative has legs.",
+  ],
+};
+
+// ============================================================
+// KEY TECHNICAL LEVELS — Layer 2 Priority Dashboard
+// ============================================================
+export const KEY_LEVELS = [
+  { symbol: "SPY", name: "S&P 500 ETF", price: "575.20", change: "-1.8%", direction: "down" as const, support: "570.00", resistance: "585.00", trend: "Bearish" },
+  { symbol: "QQQ", name: "Nasdaq 100 ETF", price: "472.50", change: "-2.1%", direction: "down" as const, support: "465.00", resistance: "480.00", trend: "Bearish" },
+  { symbol: "IWM", name: "Russell 2000 ETF", price: "198.30", change: "-2.4%", direction: "down" as const, support: "195.00", resistance: "205.00", trend: "Bearish" },
+  { symbol: "DIA", name: "Dow Jones ETF", price: "415.80", change: "-1.5%", direction: "down" as const, support: "410.00", resistance: "422.00", trend: "Bearish" },
+];
+
+export const FEAR_GAUGE = {
+  vix: "25.83",
+  vixChange: "+8.2%",
+  vixTrend: "up" as const,
+  putCallRatio: "1.24",
+  putCallSignal: "Elevated Fear" as const,
+  ivRank: 72,
+  fearLevel: "ELEVATED" as const,
+};
+
+// ============================================================
+// DEEP DIVE TOOLS — Layer 4
+// ============================================================
+export const DEEP_DIVE_TOOLS = [
+  { name: "TradingView — SPX", description: "Full chart with technicals", url: "https://www.tradingview.com/chart/?symbol=SP%3ASPX", category: "Charts" },
+  { name: "TradingView — VIX", description: "Volatility index chart", url: "https://www.tradingview.com/chart/?symbol=TVC%3AVIX", category: "Charts" },
+  { name: "TradingView — Oil (CL)", description: "Crude oil futures", url: "https://www.tradingview.com/chart/?symbol=NYMEX%3ACL1%21", category: "Charts" },
+  { name: "CBOE Options Hub", description: "Real-time options data", url: "https://www.cboe.com/options-hub/", category: "Options" },
+  { name: "CME FedWatch", description: "Fed rate probability tool", url: "https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html", category: "Macro" },
+  { name: "Finviz Heatmap", description: "S&P 500 sector heatmap", url: "https://finviz.com/map.ashx", category: "Screeners" },
+  { name: "Unusual Whales", description: "Options flow & dark pool", url: "https://unusualwhales.com/flow", category: "Options" },
+  { name: "Economic Calendar", description: "Upcoming data releases", url: "https://www.forexfactory.com/calendar", category: "Macro" },
+];
+
+// ============================================================
 // OVERNIGHT DEVELOPMENTS — Structured event table
 // ============================================================
 export const OVERNIGHT_DEVELOPMENTS = [

@@ -1,35 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import {
-  BRIEFING_DATE,
-  BRIEFING_EDITION,
-  EXECUTIVE_VIEW,
-  MARKET_REGIME,
-  MARKET_SNAPSHOT,
-  MACRO_CONDITIONS,
-  NEWS_SIGNALS,
-  SENTIMENT_SUMMARY,
-  EVENT_CALENDAR,
-  SECTOR_ROTATION,
-  SEASONAL_CONTEXT,
-  TRADING_IDEAS,
-  PRIOR_SESSION_GRADES,
-  EARNINGS_PLAYS,
-  ACCOUNTS,
-  CROSS_ACCOUNT_RISKS,
-  ACCOUNT_HISTORY,
-  DECISION_SUMMARY,
-  OVERNIGHT_DEVELOPMENTS,
-  CRISIS_STATUS,
-  WEEKLY_THESIS_SCORECARD,
-  SCENARIO_MATRIX,
-  ECONOMIC_DATA_BREAKDOWN,
-  AI_SUMMARY,
-  KEY_LEVELS,
-  FEAR_GAUGE,
-  DEEP_DIVE_TOOLS,
-} from "@/lib/briefingData";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useLiveData } from "@/hooks/useLiveData";
+import { useDynamicBriefing } from "@/hooks/useDynamicBriefing";
 import { Link } from "wouter";
 import {
   TrendingUp,
@@ -165,7 +137,19 @@ export default function Home() {
   const mainRef = useRef<HTMLDivElement>(null);
   const liveData = useLiveData();
 
-  // Live data with fallback to hardcoded briefing data
+  // Dynamic briefing data (live from scheduled function, fallback to static)
+  const {
+    BRIEFING_DATE, BRIEFING_EDITION, AI_SUMMARY, KEY_LEVELS, FEAR_GAUGE,
+    OVERNIGHT_DEVELOPMENTS, CRISIS_STATUS, MARKET_REGIME, EXECUTIVE_VIEW,
+    TRADING_IDEAS, SCENARIO_MATRIX, DECISION_SUMMARY, SECTOR_ROTATION,
+    MACRO_CONDITIONS, MARKET_SNAPSHOT, NEWS_SIGNALS, SENTIMENT_SUMMARY,
+    EVENT_CALENDAR, SEASONAL_CONTEXT, PRIOR_SESSION_GRADES, EARNINGS_PLAYS,
+    ACCOUNTS, CROSS_ACCOUNT_RISKS, ACCOUNT_HISTORY, ECONOMIC_DATA_BREAKDOWN,
+    WEEKLY_THESIS_SCORECARD, DEEP_DIVE_TOOLS,
+    meta: briefingMeta, refreshBriefing,
+  } = useDynamicBriefing();
+
+  // Live data with fallback to briefing data
   const displayMarketSnapshot = liveData.marketSnapshot || MARKET_SNAPSHOT;
   const displayNews = liveData.news || NEWS_SIGNALS;
   const displayCalendar = liveData.calendar || EVENT_CALENDAR;
@@ -401,7 +385,15 @@ export default function Home() {
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">IkigaiTradeOS Market Intelligence</p>
                 <h1 className="font-display text-2xl font-bold text-foreground">{BRIEFING_DATE}</h1>
-                <p className="text-sm text-muted-foreground mt-0.5">{BRIEFING_EDITION}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-sm text-muted-foreground">{BRIEFING_EDITION}</p>
+                  {briefingMeta.isLive ? (
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border text-bull border-bull/30 bg-bull/10">LIVE</span>
+                  ) : (
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border text-yellow-400 border-yellow-500/30 bg-yellow-900/10">STATIC</span>
+                  )}
+                  {briefingMeta.generatedAt && <LastUpdatedBadge timestamp={briefingMeta.generatedAt} />}
+                </div>
               </div>
               <RegimeBadge classification={MARKET_REGIME.classification} size="lg" />
             </div>
@@ -410,7 +402,7 @@ export default function Home() {
             {/* LAYER 1: AI INTELLIGENCE SUMMARY                       */}
             {/* ═══════════════════════════════════════════════════════ */}
             <section id="ai-summary" className="scroll-mt-16">
-              <AIIntelligenceSummary />
+              <AIIntelligenceSummary aiSummary={AI_SUMMARY} meta={briefingMeta} onRefresh={refreshBriefing} />
             </section>
 
             {/* ═══════════════════════════════════════════════════════ */}
@@ -542,14 +534,14 @@ export default function Home() {
             </div>
 
             {/* ── EXECUTIVE VIEW ── */}
-            <CollapsibleSection id="executive-view" title="Executive Market View" icon={<Zap className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse}>
+            <CollapsibleSection id="executive-view" title="Executive Market View" icon={<Zap className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse} updatedAt={briefingMeta.generatedAt}>
               <div className="p-5 rounded-lg border border-border bg-card">
                 <p className="text-sm leading-relaxed text-foreground/90">{EXECUTIVE_VIEW}</p>
               </div>
             </CollapsibleSection>
 
             {/* ── OVERNIGHT DEVELOPMENTS ── */}
-            <CollapsibleSection id="overnight-developments" title="Overnight Developments" icon={<Clock className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse}>
+            <CollapsibleSection id="overnight-developments" title="Overnight Developments" icon={<Clock className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse} updatedAt={briefingMeta.generatedAt}>
               <div className="space-y-2">
                 {OVERNIGHT_DEVELOPMENTS.map((dev, i) => (
                   <div key={i} className="flex gap-4 p-4 rounded-lg border border-border bg-card">
@@ -578,7 +570,7 @@ export default function Home() {
             </CollapsibleSection>
 
             {/* ── MARKET ENVIRONMENT ── */}
-            <CollapsibleSection id="market-environment" title="Market Environment" icon={<BarChart2 className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
+            <CollapsibleSection id="market-environment" title="Market Environment" icon={<BarChart2 className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse} updatedAt={briefingMeta.generatedAt}>
               {/* Macro conditions */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
                 {MACRO_CONDITIONS.map((cond) => (
@@ -620,7 +612,7 @@ export default function Home() {
             </CollapsibleSection>
 
             {/* ── CRISIS / GEOPOLITICAL STATUS ── */}
-            <CollapsibleSection id="crisis-status" title="Crisis / Geopolitical Status" icon={<Globe className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse} accent="bear">
+            <CollapsibleSection id="crisis-status" title="Crisis / Geopolitical Status" icon={<Globe className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse} accent="bear" updatedAt={briefingMeta.generatedAt}>
               <div className="space-y-4">
                 {/* Threat level banner */}
                 <div className={`p-5 rounded-lg border-2 ${
@@ -971,7 +963,7 @@ export default function Home() {
             </CollapsibleSection>
 
             {/* ── SCENARIO PROBABILITY MATRIX ── */}
-            <CollapsibleSection id="scenario-matrix" title="Forward Scenario Matrix" icon={<BarChart className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
+            <CollapsibleSection id="scenario-matrix" title="Forward Scenario Matrix" icon={<BarChart className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse} updatedAt={briefingMeta.generatedAt}>
               <div className="mt-4 space-y-3">
                 {SCENARIO_MATRIX.map((sc, i) => (
                   <div key={i} className="p-4 rounded-lg border border-border bg-card overflow-hidden">
@@ -1070,7 +1062,7 @@ export default function Home() {
             </CollapsibleSection>
 
             {/* ── TRADING IDEAS ── */}
-            <CollapsibleSection id="trading-ideas" title="Trading Ideas" icon={<Target className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse}>
+            <CollapsibleSection id="trading-ideas" title="Trading Ideas" icon={<Target className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse} updatedAt={briefingMeta.generatedAt}>
 
               {/* TODAY */}
               <div className="mt-4">
@@ -1155,13 +1147,23 @@ export default function Home() {
 
 // ─── LAYER COMPONENTS ───────────────────────────────────────
 
-function AIIntelligenceSummary() {
+function AIIntelligenceSummary({ aiSummary, meta, onRefresh }: {
+  aiSummary: { generatedAt: string; paragraphs: string[] };
+  meta: { generatedAt: string | null; isLive: boolean; isLoading: boolean };
+  onRefresh: () => Promise<void>;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const genTime = new Date(AI_SUMMARY.generatedAt);
+  const genTime = new Date(aiSummary.generatedAt);
   const now = new Date();
   const minsAgo = Math.floor((now.getTime() - genTime.getTime()) / 60000);
   const timeAgo = minsAgo < 60 ? `${minsAgo}m ago` : `${Math.floor(minsAgo / 60)}h ago`;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
+  };
 
   return (
     <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card overflow-hidden">
@@ -1174,15 +1176,20 @@ function AIIntelligenceSummary() {
           <div>
             <h2 className="text-sm font-display font-bold text-foreground">AI Intelligence Summary</h2>
             <p className="text-[10px] text-muted-foreground font-mono">
-              Generated {timeAgo} · {genTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {meta.isLive ? (
+                <><span className="text-bull">LIVE</span> · Generated {timeAgo} · {genTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+              ) : (
+                <>Static fallback · {genTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+              )}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 1500); }}
-            className="p-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
-            title="Refresh summary"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors disabled:opacity-50"
+            title="Refresh briefing"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
           </button>
@@ -1198,7 +1205,7 @@ function AIIntelligenceSummary() {
       {/* Content */}
       {!collapsed && (
         <div className="px-5 py-4 space-y-3">
-          {refreshing ? (
+          {refreshing || meta.isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
                 <div key={i} className="space-y-2 animate-pulse">
@@ -1209,7 +1216,7 @@ function AIIntelligenceSummary() {
               ))}
             </div>
           ) : (
-            AI_SUMMARY.paragraphs.map((p, i) => (
+            aiSummary.paragraphs.map((p, i) => (
               <p key={i} className="text-sm leading-relaxed text-foreground/85">{p}</p>
             ))
           )}
@@ -1237,11 +1244,11 @@ function LayerHeader({ layer, title, subtitle, icon }: { layer: string; title: s
 }
 
 function CollapsibleSection({
-  id, title, icon, children, defaultOpen = false, collapsed, onToggle, accent,
+  id, title, icon, children, defaultOpen = false, collapsed, onToggle, accent, updatedAt,
 }: {
   id: string; title: string; icon: React.ReactNode; children: React.ReactNode;
   defaultOpen?: boolean; collapsed: Record<string, boolean>; onToggle: (id: string) => void;
-  accent?: "bear" | "bull" | "primary";
+  accent?: "bear" | "bull" | "primary"; updatedAt?: string | null;
 }) {
   const isOpen = collapsed[id] === undefined ? defaultOpen : !collapsed[id];
   const accentBorder = accent === "bear" ? "border-l-bear" : accent === "bull" ? "border-l-bull" : "border-l-primary/30";
@@ -1255,6 +1262,7 @@ function CollapsibleSection({
         <div className="flex items-center gap-3">
           <span className="text-primary">{icon}</span>
           <h2 className="text-sm font-display font-bold text-foreground tracking-tight">{title}</h2>
+          {updatedAt && <LastUpdatedBadge timestamp={updatedAt} />}
         </div>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "" : "-rotate-90"}`} />
       </button>
@@ -1264,6 +1272,19 @@ function CollapsibleSection({
         </div>
       )}
     </section>
+  );
+}
+
+function LastUpdatedBadge({ timestamp }: { timestamp: string }) {
+  const t = new Date(timestamp);
+  const now = new Date();
+  const minsAgo = Math.floor((now.getTime() - t.getTime()) / 60000);
+  const label = minsAgo < 1 ? "just now" : minsAgo < 60 ? `${minsAgo}m ago` : minsAgo < 1440 ? `${Math.floor(minsAgo / 60)}h ago` : `${Math.floor(minsAgo / 1440)}d ago`;
+  const isStale = minsAgo > 720; // >12h
+  return (
+    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${isStale ? "text-yellow-400 border-yellow-500/30 bg-yellow-900/10" : "text-muted-foreground border-border bg-secondary/30"}`}>
+      {label}
+    </span>
   );
 }
 

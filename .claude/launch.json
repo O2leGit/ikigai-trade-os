@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ikigai-dashboard",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "3900", "--host"],
+      "port": 3900,
+      "cwd": "C:\\Users\\Chris\\Documents\\ikigai-trade-os"
+    }
+  ]
+}

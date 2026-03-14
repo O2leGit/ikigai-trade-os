@@ -1,0 +1,201 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+:root {
+  /* Institutional dark theme — always dark */
+  --background: oklch(0.09 0.005 240);
+  --foreground: oklch(0.93 0.01 240);
+  --card: oklch(0.12 0.007 240);
+  --card-foreground: oklch(0.93 0.01 240);
+  --popover: oklch(0.11 0.007 240);
+  --popover-foreground: oklch(0.93 0.01 240);
+  --primary: oklch(0.72 0.18 195);
+  --primary-foreground: oklch(0.09 0.005 240);
+  --secondary: oklch(0.16 0.008 240);
+  --secondary-foreground: oklch(0.75 0.01 240);
+  --muted: oklch(0.15 0.007 240);
+  --muted-foreground: oklch(0.55 0.01 240);
+  --accent: oklch(0.72 0.18 195);
+  --accent-foreground: oklch(0.09 0.005 240);
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.22 0.008 240);
+  --input: oklch(0.16 0.008 240);
+  --ring: oklch(0.72 0.18 195);
+  --radius: 0.375rem;
+  --chart-1: oklch(0.72 0.18 195);
+  --chart-2: oklch(0.68 0.18 145);
+  --chart-3: oklch(0.78 0.16 75);
+  --chart-4: oklch(0.62 0.22 25);
+  --chart-5: oklch(0.72 0.18 280);
+  --sidebar: oklch(0.10 0.006 240);
+  --sidebar-foreground: oklch(0.93 0.01 240);
+  --sidebar-primary: oklch(0.72 0.18 195);
+  --sidebar-primary-foreground: oklch(0.09 0.005 240);
+  --sidebar-accent: oklch(0.16 0.008 240);
+  --sidebar-accent-foreground: oklch(0.93 0.01 240);
+  --sidebar-border: oklch(0.22 0.008 240);
+  --sidebar-ring: oklch(0.72 0.18 195);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Inter", system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+  @media (min-width: 640px) {
+    .container { padding-left: 1.5rem; padding-right: 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .container { padding-left: 2rem; padding-right: 2rem; max-width: 1440px; }
+  }
+}
+
+@layer utilities {
+  /* Trading semantic colors */
+  .text-bull { color: oklch(0.68 0.18 145); }
+  .text-bear { color: oklch(0.62 0.22 25); }
+  .text-neutral-gold { color: oklch(0.78 0.16 75); }
+  .bg-bull { background-color: oklch(0.68 0.18 145); }
+  .bg-bear { background-color: oklch(0.62 0.22 25); }
+  .bg-bull\/10 { background-color: oklch(0.68 0.18 145 / 0.1); }
+  .bg-bear\/10 { background-color: oklch(0.62 0.22 25 / 0.1); }
+
+  /* Regime colors */
+  .text-regime-risk-on { color: oklch(0.68 0.18 145); }
+  .text-regime-risk-off { color: oklch(0.62 0.22 25); }
+  .text-regime-neutral { color: oklch(0.78 0.16 75); }
+  .text-regime-caution { color: oklch(0.72 0.18 55); }
+  .text-regime-crisis { color: oklch(0.55 0.25 15); }
+  .bg-regime-risk-on { background-color: oklch(0.68 0.18 145 / 0.15); }
+  .bg-regime-risk-off { background-color: oklch(0.62 0.22 25 / 0.15); }
+  .bg-regime-neutral { background-color: oklch(0.78 0.16 75 / 0.15); }
+  .bg-regime-caution { background-color: oklch(0.72 0.18 55 / 0.15); }
+  .bg-regime-crisis { background-color: oklch(0.55 0.25 15 / 0.15); }
+  .border-regime-risk-on { border-color: oklch(0.68 0.18 145 / 0.4); }
+  .border-regime-risk-off { border-color: oklch(0.62 0.22 25 / 0.4); }
+  .border-regime-neutral { border-color: oklch(0.78 0.16 75 / 0.4); }
+  .border-regime-caution { border-color: oklch(0.72 0.18 55 / 0.4); }
+  .border-regime-crisis { border-color: oklch(0.55 0.25 15 / 0.4); }
+
+  /* Font utilities */
+  .font-display { font-family: "Playfair Display", Georgia, serif; }
+  .font-mono { font-family: "JetBrains Mono", "Fira Code", monospace; }
+
+  /* Ticker animation */
+  .ticker-scroll { animation: ticker-scroll 80s linear infinite; }
+  .ticker-scroll:hover { animation-play-state: paused; }
+  @keyframes ticker-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* Glow effects */
+  .glow-bull { text-shadow: 0 0 12px oklch(0.68 0.18 145 / 0.5); }
+  .glow-bear { text-shadow: 0 0 12px oklch(0.62 0.22 25 / 0.5); }
+  .glow-primary { text-shadow: 0 0 16px oklch(0.72 0.18 195 / 0.4); }
+
+  /* Card hover */
+  .card-hover { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+  .card-hover:hover {
+    border-color: oklch(0.72 0.18 195 / 0.4);
+    box-shadow: 0 0 24px oklch(0.72 0.18 195 / 0.06);
+  }
+
+  /* Impact badges */
+  .badge-critical { background: oklch(0.62 0.22 25 / 0.15); color: oklch(0.75 0.18 25); border: 1px solid oklch(0.62 0.22 25 / 0.3); }
+  .badge-high { background: oklch(0.72 0.18 55 / 0.15); color: oklch(0.78 0.16 55); border: 1px solid oklch(0.72 0.18 55 / 0.3); }
+  .badge-medium { background: oklch(0.78 0.16 75 / 0.15); color: oklch(0.78 0.16 75); border: 1px solid oklch(0.78 0.16 75 / 0.3); }
+  .badge-low { background: oklch(0.22 0.008 240); color: oklch(0.55 0.01 240); border: 1px solid oklch(0.28 0.008 240); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: oklch(0.09 0.005 240); }
+  ::-webkit-scrollbar-thumb { background: oklch(0.25 0.008 240); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(0.35 0.01 240); }
+
+  /* Gradient overlays */
+  .gradient-fade-right {
+    background: linear-gradient(to right, transparent, oklch(0.09 0.005 240));
+  }
+  .gradient-fade-left {
+    background: linear-gradient(to left, transparent, oklch(0.09 0.005 240));
+  }
+}

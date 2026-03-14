@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   BRIEFING_DATE,
   BRIEFING_EDITION,
@@ -19,6 +19,7 @@ import {
   ACCOUNT_HISTORY,
   DECISION_SUMMARY,
 } from "@/lib/briefingData";
+import { useAdmin } from "@/contexts/AdminContext";
 import { Link } from "wouter";
 import {
   TrendingUp,
@@ -44,6 +45,9 @@ import {
   CheckCircle,
   XCircle,
   MinusCircle,
+  LogOut,
+  Upload as UploadIcon,
+  Lock,
 } from "lucide-react";
 import { TickerStrip } from "@/components/TickerStrip";
 import { RegimeBadge } from "@/components/RegimeBadge";
@@ -52,7 +56,7 @@ import { ImpactBadge } from "@/components/ImpactBadge";
 
 
 // ─── NAV ITEMS ───────────────────────────────────────────────
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { id: "executive-view", label: "Executive View", icon: <Zap className="w-4 h-4" /> },
   { id: "market-environment", label: "Market Environment", icon: <BarChart2 className="w-4 h-4" /> },
   { id: "news-sentiment", label: "News & Sentiment", icon: <Activity className="w-4 h-4" /> },
@@ -62,9 +66,9 @@ const NAV_ITEMS = [
   { id: "prior-grades", label: "Prior Session Grades", icon: <Activity className="w-4 h-4" /> },
   { id: "earnings-plays", label: "Earnings Plays", icon: <DollarSign className="w-4 h-4" /> },
   { id: "trading-ideas", label: "Trading Ideas", icon: <Target className="w-4 h-4" /> },
-  { id: "portfolio-review", label: "Portfolio Review", icon: <Briefcase className="w-4 h-4" /> },
-  { id: "decision-summary", label: "Decision Summary", icon: <Shield className="w-4 h-4" /> },
 ];
+const PORTFOLIO_NAV_ITEM = { id: "portfolio-review", label: "Portfolio Review", icon: <Briefcase className="w-4 h-4" /> };
+const DECISION_NAV_ITEM = { id: "decision-summary", label: "Decision Summary", icon: <Shield className="w-4 h-4" /> };
 
 // ─── HELPERS ─────────────────────────────────────────────────
 function scrollToSection(id: string) {
@@ -116,9 +120,17 @@ function PnlText({ value }: { value: string }) {
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────
 export default function Home() {
+  const { isAdmin, logout } = useAdmin();
   const [activeSection, setActiveSection] = useState("executive-view");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  const NAV_ITEMS = useMemo(() => {
+    const items = [...BASE_NAV_ITEMS];
+    if (isAdmin) items.push(PORTFOLIO_NAV_ITEM);
+    items.push(DECISION_NAV_ITEM);
+    return items;
+  }, [isAdmin]);
 
   // Intersection observer for active nav highlight
   useEffect(() => {
@@ -225,7 +237,7 @@ export default function Home() {
             ))}
           </nav>
 
-          {/* Archive link */}
+          {/* Archive + Upload links */}
           <div className="p-3 border-t border-border space-y-1">
             <Link href="/archive">
               <button className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
@@ -233,12 +245,44 @@ export default function Home() {
                 Briefing Archive
               </button>
             </Link>
+            {isAdmin && (
+              <Link href="/upload">
+                <button className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+                  <UploadIcon className="w-4 h-4" />
+                  Upload Briefing
+                </button>
+              </Link>
+            )}
           </div>
 
-          {/* Regime badge at bottom */}
-          <div className="p-3 border-t border-border">
-            <p className="text-[9px] text-muted-foreground uppercase tracking-widest mb-1.5">Current Regime</p>
-            <RegimeBadge classification={MARKET_REGIME.classification} size="sm" />
+          {/* Admin indicator + Regime badge at bottom */}
+          <div className="p-3 border-t border-border space-y-3">
+            {isAdmin ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] text-primary font-semibold uppercase tracking-wider">Admin</span>
+                </div>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-bear transition-colors"
+                >
+                  <LogOut className="w-3 h-3" />
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link href="/admin">
+                <button className="w-full flex items-center gap-2 px-3 py-1.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+                  <Lock className="w-3 h-3" />
+                  Admin Login
+                </button>
+              </Link>
+            )}
+            <div>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-widest mb-1.5">Current Regime</p>
+              <RegimeBadge classification={MARKET_REGIME.classification} size="sm" />
+            </div>
           </div>
         </aside>
 
@@ -555,11 +599,13 @@ export default function Home() {
               </div>
             </section>
 
-            {/* ── 10 PORTFOLIO REVIEW ── */}
+            {/* ── 10 PORTFOLIO REVIEW (admin only) ── */}
+            {isAdmin && (
              <section id="portfolio-review" className="scroll-mt-16">
               <SectionTitle number="10" icon={<Briefcase className="w-4 h-4" />} title="Portfolio Review" />
               <PortfolioReview accounts={ACCOUNTS} crossRisks={CROSS_ACCOUNT_RISKS} />
             </section>
+            )}
 
             {/* ── 11 DECISION SUMMARY ── */}
             <section id="decision-summary" className="scroll-mt-16 pb-16">

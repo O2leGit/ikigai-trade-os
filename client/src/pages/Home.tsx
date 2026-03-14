@@ -195,6 +195,14 @@ export default function Home() {
                 <span className="hidden sm:inline">Archive</span>
               </button>
             </Link>
+            {!isAdmin && (
+              <Link href="/admin">
+                <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded border border-border hover:border-primary/40">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Admin</span>
+                </button>
+              </Link>
+            )}
           </div>
         </div>
       </header>

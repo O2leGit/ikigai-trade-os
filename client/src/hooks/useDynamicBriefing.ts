@@ -291,10 +291,13 @@ export function useDynamicBriefing() {
 
   const fetchBriefing = useCallback(async () => {
     try {
-      const res = await fetch(`/.netlify/functions/get-briefing?_t=${Date.now()}`);
+      const url = `/.netlify/functions/get-briefing?_t=${Date.now()}`;
+      console.log("[Briefing] Fetching:", url);
+      const res = await fetch(url);
       const contentType = res.headers.get("content-type") || "";
+      console.log("[Briefing] Response:", res.status, "Content-Type:", contentType);
       if (!contentType.includes("application/json")) {
-        // Dev server returns HTML for unknown routes — silently use static
+        console.warn("[Briefing] Non-JSON response, falling back to static");
         setMeta((prev) => ({
           ...prev,
           isLive: false,
@@ -317,7 +320,11 @@ export function useDynamicBriefing() {
       }
 
       const live = await res.json();
+      console.log("[Briefing] Live data keys:", Object.keys(live));
+      console.log("[Briefing] AI Summary paragraphs:", live.aiSummary?.paragraphs?.length);
       const merged = mergeBriefing(live);
+      console.log("[Briefing] Merged AI_SUMMARY paragraphs:", merged.AI_SUMMARY?.paragraphs?.length);
+      console.log("[Briefing] Setting isLive=true");
       setData(merged);
       setMeta({
         generatedAt: live._meta?.generatedAt || live.aiSummary?.generatedAt || null,
@@ -327,7 +334,7 @@ export function useDynamicBriefing() {
         lastChecked: new Date().toISOString(),
       });
     } catch (err) {
-      console.warn("Failed to fetch live briefing, using static fallback:", err);
+      console.error("[Briefing] FETCH FAILED:", err);
       setMeta((prev) => ({
         ...prev,
         isLive: false,

@@ -120,7 +120,7 @@ export function useDynamicBriefing() {
 
   const fetchBriefing = useCallback(async () => {
     try {
-      const res = await fetch("/.netlify/functions/get-briefing");
+      const res = await fetch(`/.netlify/functions/get-briefing?_t=${Date.now()}`);
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
         // Dev server returns HTML for unknown routes — silently use static

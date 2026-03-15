@@ -423,15 +423,24 @@ export default function Home() {
                   btn.innerText = "Generating report...";
                   btn.disabled = true;
                   try {
-                    // Step 1: Generate report (Claude call, stores JSON in Blobs)
-                    const genRes = await fetch("/.netlify/functions/generate-report", { method: "POST" });
-                    if (!genRes.ok) {
-                      const err = await genRes.json().catch(() => ({ error: "Unknown" }));
-                      throw new Error(err.error || `HTTP ${genRes.status}`);
+                    // Step 1: Trigger background generation (returns 202 immediately)
+                    await fetch("/.netlify/functions/generate-report-background", { method: "POST" });
+
+                    // Step 2: Poll for completion (background fn stores status in Blobs)
+                    let ready = false;
+                    for (let i = 0; i < 30; i++) {
+                      await new Promise(r => setTimeout(r, 3000));
+                      btn.innerText = `Generating... ${i * 3}s`;
+                      const statusRes = await fetch("/.netlify/functions/download-report?status=check");
+                      const status = await statusRes.json();
+                      if (status.status === "ready") { ready = true; break; }
+                      if (status.status === "error") throw new Error(status.error || "Generation failed");
                     }
-                    // Step 2: Download the DOCX
+                    if (!ready) throw new Error("Report generation timed out after 90s");
+
+                    // Step 3: Download the DOCX
                     btn.innerText = "Building DOCX...";
-                    const dlRes = await fetch("/.netlify/functions/generate-report", { method: "GET" });
+                    const dlRes = await fetch("/.netlify/functions/download-report");
                     if (!dlRes.ok) throw new Error(`Download failed: HTTP ${dlRes.status}`);
                     const blob = await dlRes.blob();
                     const disposition = dlRes.headers.get("Content-Disposition") || "";

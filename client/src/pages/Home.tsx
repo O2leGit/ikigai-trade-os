@@ -420,14 +420,21 @@ export default function Home() {
                 id="downloadReportBtn"
                 onClick={async () => {
                   const btn = document.getElementById("downloadReportBtn") as HTMLButtonElement;
-                  const origText = btn.innerText;
-                  btn.innerText = "Generating...";
+                  btn.innerText = "Generating report...";
                   btn.disabled = true;
                   try {
-                    const res = await fetch("/.netlify/functions/generate-report", { method: "POST" });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const blob = await res.blob();
-                    const disposition = res.headers.get("Content-Disposition") || "";
+                    // Step 1: Generate report (Claude call, stores JSON in Blobs)
+                    const genRes = await fetch("/.netlify/functions/generate-report", { method: "POST" });
+                    if (!genRes.ok) {
+                      const err = await genRes.json().catch(() => ({ error: "Unknown" }));
+                      throw new Error(err.error || `HTTP ${genRes.status}`);
+                    }
+                    // Step 2: Download the DOCX
+                    btn.innerText = "Building DOCX...";
+                    const dlRes = await fetch("/.netlify/functions/generate-report", { method: "GET" });
+                    if (!dlRes.ok) throw new Error(`Download failed: HTTP ${dlRes.status}`);
+                    const blob = await dlRes.blob();
+                    const disposition = dlRes.headers.get("Content-Disposition") || "";
                     const match = disposition.match(/filename="(.+?)"/);
                     const filename = match?.[1] || `IkigaiTradeOS-Report-${new Date().toISOString().split("T")[0]}.docx`;
                     const link = document.createElement("a");
@@ -437,9 +444,9 @@ export default function Home() {
                     URL.revokeObjectURL(link.href);
                   } catch (err) {
                     console.error("Report generation failed:", err);
-                    alert("Report generation failed. Please try again.");
+                    alert(`Report generation failed: ${err instanceof Error ? err.message : "Unknown error"}`);
                   } finally {
-                    btn.innerText = origText;
+                    btn.innerText = "Download Report";
                     btn.disabled = false;
                   }
                 }}

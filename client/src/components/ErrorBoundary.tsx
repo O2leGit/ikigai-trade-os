@@ -60,3 +60,48 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 export default ErrorBoundary;
+
+// Section-level boundary: catches errors per-section so one bad section doesn't nuke the page
+interface SectionBoundaryProps {
+  children: ReactNode;
+  name?: string;
+}
+
+interface SectionBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+export class SectionErrorBoundary extends Component<SectionBoundaryProps, SectionBoundaryState> {
+  constructor(props: SectionBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): SectionBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.warn(`[${this.props.name || "Section"}] render error:`, error.message, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-900/10">
+          <p className="text-xs text-yellow-400 font-mono">
+            {this.props.name ? `${this.props.name}: ` : ""}Failed to render section
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-2 text-xs text-primary underline"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}

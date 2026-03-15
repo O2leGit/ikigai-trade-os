@@ -50,6 +50,7 @@ import { RegimeBadge } from "@/components/RegimeBadge";
 import { ConvictionBadge } from "@/components/ConvictionBadge";
 import { ImpactBadge } from "@/components/ImpactBadge";
 import { AIChatBox } from "@/components/AIChatBox";
+import { SectionErrorBoundary } from "@/components/ErrorBoundary";
 import { useAIChat } from "@/hooks/useAIChat";
 
 
@@ -491,7 +492,9 @@ export default function Home() {
             {/* LAYER 1: AI INTELLIGENCE SUMMARY                       */}
             {/* ═══════════════════════════════════════════════════════ */}
             <section id="ai-summary" className="scroll-mt-16">
-              <AIIntelligenceSummary aiSummary={AI_SUMMARY} meta={briefingMeta} onRefresh={refreshBriefing} />
+              <SectionErrorBoundary name="AI Intelligence Summary">
+                <AIIntelligenceSummary aiSummary={AI_SUMMARY} meta={briefingMeta} onRefresh={refreshBriefing} />
+              </SectionErrorBoundary>
             </section>
 
             {/* ═══════════════════════════════════════════════════════ */}
@@ -1120,8 +1123,8 @@ export default function Home() {
                       <span className="text-sm text-muted-foreground">{ep.company}</span>
                       <span className="text-[10px] font-mono text-muted-foreground border border-border px-1.5 py-0.5 rounded">{ep.reportDate}</span>
                       <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
-                        ep.setup.includes("SHORT") ? "text-bear border-bear/30 bg-bear/10"
-                        : ep.setup.includes("LONG") ? "text-bull border-bull/30 bg-bull/10"
+                        (ep.setup || "").includes("SHORT") ? "text-bear border-bear/30 bg-bear/10"
+                        : (ep.setup || "").includes("LONG") ? "text-bull border-bull/30 bg-bull/10"
                         : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10"}`}>
                         {ep.setup}
                       </span>
@@ -1357,7 +1360,9 @@ function CollapsibleSection({
       </button>
       {isOpen && (
         <div className="px-4 pb-4">
-          {children}
+          <SectionErrorBoundary name={title}>
+            {children}
+          </SectionErrorBoundary>
         </div>
       )}
     </section>
@@ -1501,7 +1506,7 @@ type TradeIdea = {
 function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
   const isLong = idea.direction === "LONG";
   const isShort = idea.direction === "SHORT";
-  const isHold = idea.direction.includes("HOLD");
+  const isHold = (idea.direction || "").includes("HOLD");
   const dirColor = isLong ? "text-bull border-bull/30 bg-bull/10"
     : isShort ? "text-bear border-bear/30 bg-bear/10"
     : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";

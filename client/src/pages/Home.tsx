@@ -417,31 +417,36 @@ export default function Home() {
                 Run Brief
               </button>
               <button
-                onClick={() => {
-                  const paragraphs = AI_SUMMARY?.paragraphs || [];
-                  const date = BRIEFING_DATE || new Date().toLocaleDateString();
-                  const lines = [
-                    `IKIGAITRADEOS DAILY MARKET BRIEF`,
-                    `${date}`,
-                    `${"=".repeat(50)}`,
-                    ``,
-                    `REGIME: ${MARKET_REGIME?.classification || "N/A"}`,
-                    ``,
-                    ...paragraphs.flatMap((p: string, i: number) => [`--- Section ${i + 1} ---`, p, ``]),
-                    `${"=".repeat(50)}`,
-                    `Generated: ${AI_SUMMARY?.generatedAt || "N/A"}`,
-                  ];
-                  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-                  const link = document.createElement("a");
-                  link.download = `IkigaiTradeOS-Brief-${new Date().toISOString().split("T")[0]}.txt`;
-                  link.href = URL.createObjectURL(blob);
-                  link.click();
-                  URL.revokeObjectURL(link.href);
+                id="downloadReportBtn"
+                onClick={async () => {
+                  const btn = document.getElementById("downloadReportBtn") as HTMLButtonElement;
+                  const origText = btn.innerText;
+                  btn.innerText = "Generating...";
+                  btn.disabled = true;
+                  try {
+                    const res = await fetch("/.netlify/functions/generate-report", { method: "POST" });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const blob = await res.blob();
+                    const disposition = res.headers.get("Content-Disposition") || "";
+                    const match = disposition.match(/filename="(.+?)"/);
+                    const filename = match?.[1] || `IkigaiTradeOS-Report-${new Date().toISOString().split("T")[0]}.docx`;
+                    const link = document.createElement("a");
+                    link.download = filename;
+                    link.href = URL.createObjectURL(blob);
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                  } catch (err) {
+                    console.error("Report generation failed:", err);
+                    alert("Report generation failed. Please try again.");
+                  } finally {
+                    btn.innerText = origText;
+                    btn.disabled = false;
+                  }
                 }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all"
               >
                 <Download className="w-4 h-4" />
-                Download Brief
+                Download Report
               </button>
             </div>
 

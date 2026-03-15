@@ -402,13 +402,31 @@ export default function Home() {
             {/* ── ACTION BAR ── */}
             <div className="flex items-center gap-3 -mt-6">
               <button
+                id="runBriefBtn"
                 onClick={async () => {
+                  const btn = document.getElementById("runBriefBtn") as HTMLButtonElement;
+                  const origHTML = btn.innerHTML;
+                  btn.disabled = true;
+                  btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...`;
                   try {
-                    const res = await fetch("/.netlify/functions/trigger-briefing", { method: "POST" });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    await fetch("/.netlify/functions/trigger-briefing-background", { method: "POST" });
+                    let ready = false;
+                    for (let i = 0; i < 40; i++) {
+                      await new Promise(r => setTimeout(r, 3000));
+                      btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating... ${(i + 1) * 3}s`;
+                      const statusRes = await fetch("/.netlify/functions/briefing-status");
+                      const status = await statusRes.json();
+                      if (status.status === "ready") { ready = true; break; }
+                      if (status.status === "error") throw new Error(status.error || "Generation failed");
+                    }
+                    if (!ready) throw new Error("Briefing generation timed out after 120s");
                     await refreshBriefing();
                   } catch (err) {
                     console.error("Briefing trigger failed:", err);
+                    alert(`Briefing generation failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+                  } finally {
+                    btn.innerHTML = origHTML;
+                    btn.disabled = false;
                   }
                 }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/25 transition-all"

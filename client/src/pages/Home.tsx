@@ -43,6 +43,7 @@ import {
   RefreshCw,
   Sparkles,
   MessageSquare,
+  Download,
 } from "lucide-react";
 import { TickerStrip } from "@/components/TickerStrip";
 import { RegimeBadge } from "@/components/RegimeBadge";
@@ -396,6 +397,52 @@ export default function Home() {
                 </div>
               </div>
               <RegimeBadge classification={MARKET_REGIME.classification} size="lg" />
+            </div>
+
+            {/* ── ACTION BAR ── */}
+            <div className="flex items-center gap-3 -mt-6">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/.netlify/functions/trigger-briefing", { method: "POST" });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    await refreshBriefing();
+                  } catch (err) {
+                    console.error("Briefing trigger failed:", err);
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/25 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Run Brief
+              </button>
+              <button
+                onClick={() => {
+                  const paragraphs = AI_SUMMARY?.paragraphs || [];
+                  const date = BRIEFING_DATE || new Date().toLocaleDateString();
+                  const lines = [
+                    `IKIGAITRADEOS DAILY MARKET BRIEF`,
+                    `${date}`,
+                    `${"=".repeat(50)}`,
+                    ``,
+                    `REGIME: ${MARKET_REGIME?.classification || "N/A"}`,
+                    ``,
+                    ...paragraphs.flatMap((p: string, i: number) => [`--- Section ${i + 1} ---`, p, ``]),
+                    `${"=".repeat(50)}`,
+                    `Generated: ${AI_SUMMARY?.generatedAt || "N/A"}`,
+                  ];
+                  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+                  const link = document.createElement("a");
+                  link.download = `IkigaiTradeOS-Brief-${new Date().toISOString().split("T")[0]}.txt`;
+                  link.href = URL.createObjectURL(blob);
+                  link.click();
+                  URL.revokeObjectURL(link.href);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Download Brief
+              </button>
             </div>
 
             {/* ═══════════════════════════════════════════════════════ */}

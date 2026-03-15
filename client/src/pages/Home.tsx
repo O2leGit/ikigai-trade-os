@@ -411,7 +411,7 @@ export default function Home() {
                   btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...`;
                   try {
                     const triggerTime = new Date().toISOString();
-                    await fetch("/api/trigger-briefing-background", { method: "POST" });
+                    await fetch("/.netlify/functions/trigger-briefing-background", { method: "POST" });
                     // Wait for background fn to set status to "generating"
                     await new Promise(r => setTimeout(r, 2000));
                     let ready = false;
@@ -446,7 +446,7 @@ export default function Home() {
                   btn.disabled = true;
                   try {
                     // Step 1: Trigger background generation (returns 202 immediately)
-                    await fetch("/api/generate-report-background", { method: "POST" });
+                    await fetch("/.netlify/functions/generate-report-background", { method: "POST" });
 
                     // Step 2: Poll for completion (background fn stores status in Blobs)
                     let ready = false;

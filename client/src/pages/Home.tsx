@@ -105,7 +105,7 @@ function GradeChip({ grade }: { grade: string }) {
 }
 
 function ActionChip({ action }: { action: string }) {
-  const upper = action.toUpperCase();
+  const upper = (action || "").toUpperCase();
   const color = upper.includes("HOLD")
     ? "text-yellow-400 border-yellow-500/40 bg-yellow-900/10"
     : upper.includes("TRIM") || upper.includes("EXIT") || upper.includes("CLOSE")
@@ -765,7 +765,7 @@ export default function Home() {
                         signal.sentiment === "bullish" ? "text-bull border-bull/30 bg-bull/10"
                         : signal.sentiment === "bearish" ? "text-bear border-bear/30 bg-bear/10"
                         : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10"}`}>
-                        {signal.sentiment.toUpperCase()}
+                        {(signal.sentiment || "").toUpperCase()}
                       </span>
                       <span className="text-[10px] text-muted-foreground font-mono">{signal.source}</span>
                     </div>

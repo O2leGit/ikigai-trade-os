@@ -3,7 +3,7 @@ interface ImpactBadgeProps {
 }
 
 export function ImpactBadge({ impact }: ImpactBadgeProps) {
-  const upper = impact.toUpperCase();
+  const upper = (impact || "").toUpperCase();
   let className = "";
   if (upper === "CRITICAL") {
     className = "badge-critical";

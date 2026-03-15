@@ -4,7 +4,7 @@ interface RegimeBadgeProps {
 }
 
 function getRegimeStyle(classification: string) {
-  const upper = classification.toUpperCase();
+  const upper = (classification || "").toUpperCase();
   if (upper.includes("RISK-ON") || upper.includes("BULLISH")) {
     return {
       bg: "bg-regime-risk-on",

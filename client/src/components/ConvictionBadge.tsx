@@ -3,7 +3,7 @@ interface ConvictionBadgeProps {
 }
 
 export function ConvictionBadge({ conviction }: ConvictionBadgeProps) {
-  const upper = conviction.toUpperCase();
+  const upper = (conviction || "").toUpperCase();
   let className = "";
   if (upper === "HIGH") {
     className = "bg-emerald-900/30 text-emerald-400 border-emerald-800/50";

@@ -8,6 +8,9 @@
 [functions."generate-briefing"]
   timeout = 60
 
+[functions."trigger-briefing"]
+  timeout = 60
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

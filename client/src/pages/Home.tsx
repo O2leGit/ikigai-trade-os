@@ -644,7 +644,7 @@ export default function Home() {
                       </div>
                       <p className="text-xs text-foreground/70 leading-relaxed mb-2">{dev.details}</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {dev.affectedAssets.map((asset) => (
+                        {(dev.affectedAssets || []).map((asset) => (
                           <span key={asset} className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
                             dev.direction === "bullish" ? "text-bull border-bull/30 bg-bull/10" : "text-bear border-bear/30 bg-bear/10"
                           }`}>
@@ -688,7 +688,7 @@ export default function Home() {
                   <div className="sm:w-60">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Best Strategies</p>
                     <ul className="space-y-1.5">
-                      {MARKET_REGIME.bestStrategies.map((s) => (
+                      {(MARKET_REGIME.bestStrategies || []).map((s) => (
                         <li key={s} className="flex items-start gap-2 text-xs text-foreground/80">
                           <ChevronRight className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
                           {s}
@@ -726,7 +726,7 @@ export default function Home() {
 
                 {/* Threat indicators */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {CRISIS_STATUS.indicators.map((ind) => (
+                  {(CRISIS_STATUS.indicators || []).map((ind) => (
                     <div key={ind.label} className="p-3 rounded-lg border border-border bg-card">
                       <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">{ind.label}</p>
                       <p className={`text-sm font-mono font-bold ${
@@ -742,7 +742,7 @@ export default function Home() {
                 <div className="p-4 rounded-lg border border-border bg-card">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-3">Sector Impact Assessment</p>
                   <div className="space-y-2">
-                    {CRISIS_STATUS.affectedSectors.map((sec) => (
+                    {(CRISIS_STATUS.affectedSectors || []).map((sec) => (
                       <div key={sec.sector} className="flex items-center gap-3">
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${sec.direction === "up" ? "bg-bull" : "bg-bear"}`} />
                         <span className="text-xs font-semibold text-foreground w-28 flex-shrink-0">{sec.sector}</span>
@@ -1085,7 +1085,7 @@ export default function Home() {
                       <div>
                         <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold mb-1.5">Key Triggers</p>
                         <ul className="space-y-1">
-                          {sc.triggers.map((trigger, j) => (
+                          {(sc.triggers || []).map((trigger, j) => (
                             <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/70">
                               <ChevronRight className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
                               {trigger}
@@ -1096,7 +1096,7 @@ export default function Home() {
                       <div>
                         <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold mb-1.5">Best Trades</p>
                         <ul className="space-y-1">
-                          {sc.bestTrades.map((trade, j) => (
+                          {(sc.bestTrades || []).map((trade, j) => (
                             <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/70">
                               <Target className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
                               {trade}
@@ -1160,7 +1160,7 @@ export default function Home() {
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Today — Intraday (8:30–10:30 AM CT)</h3>
                 </div>
                 <div className="space-y-3">
-                  {TRADING_IDEAS.today.map((idea, i) => (
+                  {(TRADING_IDEAS.today || []).map((idea, i) => (
                     <TradeIdeaCard key={i} idea={idea} />
                   ))}
                 </div>
@@ -1173,7 +1173,7 @@ export default function Home() {
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">This Week — Swing Trades</h3>
                 </div>
                 <div className="space-y-3">
-                  {TRADING_IDEAS.thisWeek.map((idea, i) => (
+                  {(TRADING_IDEAS.thisWeek || []).map((idea, i) => (
                     <TradeIdeaCard key={i} idea={idea} />
                   ))}
                 </div>
@@ -1186,7 +1186,7 @@ export default function Home() {
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">This Month — Position Trades</h3>
                 </div>
                 <div className="space-y-3">
-                  {TRADING_IDEAS.thisMonth.map((idea, i) => (
+                  {(TRADING_IDEAS.thisMonth || []).map((idea, i) => (
                     <TradeIdeaCard key={i} idea={idea} />
                   ))}
                 </div>
@@ -1305,7 +1305,7 @@ function AIIntelligenceSummary({ aiSummary, meta, onRefresh }: {
               ))}
             </div>
           ) : (
-            aiSummary.paragraphs.map((p, i) => (
+            (aiSummary.paragraphs || []).map((p, i) => (
               <p key={i} className="text-sm leading-relaxed text-foreground/85">{p}</p>
             ))
           )}

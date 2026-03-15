@@ -19,7 +19,7 @@ export function useAIChat(portfolioContext?: string) {
       setError(null);
 
       try {
-        const res = await fetch("/.netlify/functions/ai-chat", {
+        const res = await fetch("/api/ai-chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

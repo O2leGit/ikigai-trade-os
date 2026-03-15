@@ -411,14 +411,14 @@ export default function Home() {
                   btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...`;
                   try {
                     const triggerTime = new Date().toISOString();
-                    await fetch("/.netlify/functions/trigger-briefing-background", { method: "POST" });
+                    await fetch("/api/trigger-briefing-background", { method: "POST" });
                     // Wait for background fn to set status to "generating"
                     await new Promise(r => setTimeout(r, 2000));
                     let ready = false;
                     for (let i = 0; i < 40; i++) {
                       await new Promise(r => setTimeout(r, 3000));
                       btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating... ${(i + 1) * 3 + 2}s`;
-                      const statusRes = await fetch("/.netlify/functions/briefing-status");
+                      const statusRes = await fetch("/api/briefing-status");
                       const status = await statusRes.json();
                       if (status.status === "ready" && status.generatedAt > triggerTime) { ready = true; break; }
                       if (status.status === "error" && (!status.at || status.at > triggerTime)) throw new Error(status.error || "Generation failed");
@@ -446,14 +446,14 @@ export default function Home() {
                   btn.disabled = true;
                   try {
                     // Step 1: Trigger background generation (returns 202 immediately)
-                    await fetch("/.netlify/functions/generate-report-background", { method: "POST" });
+                    await fetch("/api/generate-report-background", { method: "POST" });
 
                     // Step 2: Poll for completion (background fn stores status in Blobs)
                     let ready = false;
                     for (let i = 0; i < 30; i++) {
                       await new Promise(r => setTimeout(r, 3000));
                       btn.innerText = `Generating... ${i * 3}s`;
-                      const statusRes = await fetch("/.netlify/functions/download-report?status=check");
+                      const statusRes = await fetch("/api/download-report?status=check");
                       const status = await statusRes.json();
                       if (status.status === "ready") { ready = true; break; }
                       if (status.status === "error") throw new Error(status.error || "Generation failed");
@@ -462,7 +462,7 @@ export default function Home() {
 
                     // Step 3: Download the DOCX
                     btn.innerText = "Building DOCX...";
-                    const dlRes = await fetch("/.netlify/functions/download-report");
+                    const dlRes = await fetch("/api/download-report");
                     if (!dlRes.ok) throw new Error(`Download failed: HTTP ${dlRes.status}`);
                     const blob = await dlRes.blob();
                     const disposition = dlRes.headers.get("Content-Disposition") || "";

@@ -291,7 +291,7 @@ export function useDynamicBriefing() {
 
   const fetchBriefing = useCallback(async () => {
     try {
-      const url = `/.netlify/functions/get-briefing?_t=${Date.now()}`;
+      const url = `/api/get-briefing?_t=${Date.now()}`;
       console.log("[Briefing] Fetching:", url);
       const res = await fetch(url);
       const contentType = res.headers.get("content-type") || "";

@@ -293,7 +293,7 @@ export function useDynamicBriefing() {
     try {
       const url = `/api/get-briefing?_t=${Date.now()}`;
       console.log("[Briefing] Fetching:", url);
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: "no-store" });
       const contentType = res.headers.get("content-type") || "";
       console.log("[Briefing] Response:", res.status, "Content-Type:", contentType);
       if (!contentType.includes("application/json")) {

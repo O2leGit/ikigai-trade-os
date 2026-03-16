@@ -418,7 +418,7 @@ export default function Home() {
                     for (let i = 0; i < 40; i++) {
                       await new Promise(r => setTimeout(r, 3000));
                       btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating... ${(i + 1) * 3 + 2}s`;
-                      const statusRes = await fetch("/api/briefing-status");
+                      const statusRes = await fetch("/api/briefing-status", { cache: "no-store" });
                       const status = await statusRes.json();
                       if (status.status === "ready" && status.generatedAt > triggerTime) { ready = true; break; }
                       if (status.status === "error" && (!status.at || status.at > triggerTime)) throw new Error(status.error || "Generation failed");

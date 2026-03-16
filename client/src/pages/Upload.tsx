@@ -432,10 +432,13 @@ export default function UploadPage() {
               Last analyzed: {new Date(analysisTimestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
             </span>
           )}
-          {files.length > 0 && <button onClick={clearAll} className="px-2.5 py-1 rounded text-[10px] text-slate-500 hover:text-slate-300 border border-slate-800 hover:border-slate-600 transition-colors">Clear</button>}
+          {(files.length > 0 || analysis) && <button onClick={clearAll} className="px-2.5 py-1 rounded text-[10px] text-slate-500 hover:text-slate-300 border border-slate-800 hover:border-slate-600 transition-colors">{analysis && files.length === 0 ? "Clear Report" : "Clear"}</button>}
           <span className="text-[10px] text-slate-600 font-mono">{files.length}/10</span>
         </div>
       </div>
+
+      {/* Hidden file input always in DOM so it can be triggered from anywhere */}
+      <input ref={fileInputRef} type="file" accept=".csv" multiple className="hidden" onChange={(e) => { if (e.target.files) processFiles(e.target.files); e.target.value = ""; }} />
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-5">
 
@@ -446,9 +449,9 @@ export default function UploadPage() {
           </div>
         )}
 
-        {/* ═══ DROP ZONE ═══════════════════════════════════════════════════════ */}
-        {(!analysis || files.length === 0) && !loadingPrevious && (
-          <div className="rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 py-8 flex flex-col items-center justify-center gap-2"
+        {/* ═══ DROP ZONE -- always visible when no files uploaded ═════════════ */}
+        {files.length === 0 && !loadingPrevious && (
+          <div className="rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 py-6 flex flex-col items-center justify-center gap-2"
             style={{ borderColor: isDragging ? "#d4a843" : "#1a2332", background: isDragging ? "#d4a8430a" : "#0c1018" }}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
@@ -457,7 +460,9 @@ export default function UploadPage() {
             <UploadIcon size={24} className="text-slate-600" />
             <p className="text-sm text-slate-400">Drop CSV files or <span className="text-amber-400/80 underline">browse</span></p>
             <p className="text-[10px] text-slate-600">TOS/Schwab account statements (up to 10)</p>
-            <input ref={fileInputRef} type="file" accept=".csv" multiple className="hidden" onChange={(e) => { if (e.target.files) processFiles(e.target.files); e.target.value = ""; }} />
+            {analysis && (
+              <p className="text-[10px] text-emerald-500/70 mt-1">Upload new files to run a fresh analysis (previous report shown below)</p>
+            )}
           </div>
         )}
 
@@ -497,9 +502,8 @@ export default function UploadPage() {
               ))}
             </div>
 
-            <button onClick={analysis ? clearAll : () => fileInputRef.current?.click()}
-              className="px-2.5 py-1.5 rounded text-[10px] text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-slate-200 transition-colors mr-2"
-              style={{ display: analysis ? "inline-flex" : "none" }}>
+            <button onClick={() => fileInputRef.current?.click()}
+              className="px-2.5 py-1.5 rounded text-[10px] text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-slate-200 transition-colors mr-2">
               + Add Files
             </button>
             <button onClick={runAnalysis} disabled={analyzing}

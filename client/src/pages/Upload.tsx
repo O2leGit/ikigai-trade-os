@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle,
   AlertTriangle,
@@ -304,11 +304,42 @@ export default function UploadPage() {
   const [analyzeProgress, setAnalyzeProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(null);
+  const [loadingPrevious, setLoadingPrevious] = useState(true);
+
   const totalPositions = files.reduce((s, f) => s + f.positions.length, 0);
   const totalNlv = files.reduce((s, f) => s + f.nlv, 0);
   const totalPnl = files.reduce((s, f) => s + f.openPnl, 0);
   const equityCount = files.reduce((s, f) => s + f.positions.filter(p => p.type === "equity").length, 0);
   const optionsCount = files.reduce((s, f) => s + f.positions.filter(p => p.type === "option").length, 0);
+
+  // Normalize raw Claude JSON into safe AnalysisResult
+  const normalizeAnalysis = (raw: any): AnalysisResult => ({
+    executiveSummary: raw.executiveSummary || raw.portfolioSummary || "",
+    marketConditions: raw.marketConditions || raw.marketContext || {},
+    criticalAlerts: Array.isArray(raw.criticalAlerts) ? raw.criticalAlerts : [],
+    accounts: raw.accounts || {},
+    ideasToday: Array.isArray(raw.ideasToday) ? raw.ideasToday : Array.isArray(raw.bestPlays) ? raw.bestPlays : [],
+    ideasThisWeek: Array.isArray(raw.ideasThisWeek) ? raw.ideasThisWeek : [],
+    ideasSwing: Array.isArray(raw.ideasSwing) ? raw.ideasSwing : [],
+    ideasLeaps: Array.isArray(raw.ideasLeaps) ? raw.ideasLeaps : [],
+  });
+
+  // ── Auto-load last analysis on mount ──────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/get-analysis?_t=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok || !res.headers.get("content-type")?.includes("json")) return;
+        const data = await res.json();
+        if (data && (data.executiveSummary || data.accounts)) {
+          setAnalysis(normalizeAnalysis(data));
+          setAnalysisTimestamp(data._meta?.analyzedAt || data._meta?.generatedAt || null);
+        }
+      } catch { /* no previous analysis, that's fine */ }
+      finally { setLoadingPrevious(false); }
+    })();
+  }, []);
 
   const processFiles = useCallback((fileList: FileList) => {
     const newFiles: ParsedFile[] = [];
@@ -333,7 +364,7 @@ export default function UploadPage() {
   }, [files.length]);
 
   const removeFile = (fileName: string) => { setFiles(prev => prev.filter(f => f.fileName !== fileName)); setAnalysis(null); };
-  const clearAll = () => { setFiles([]); setAnalysis(null); setAnalyzeError(null); setParseErrors([]); };
+  const clearAll = () => { setFiles([]); setAnalysis(null); setAnalyzeError(null); setParseErrors([]); setAnalysisTimestamp(null); };
 
   // ── Analyze with Claude ─────────────────────────────────────────────────────
   const runAnalysis = async () => {
@@ -373,16 +404,8 @@ export default function UploadPage() {
       if (!result) throw new Error("Analysis timed out after 180s");
 
       // Defensive normalization
-      setAnalysis({
-        executiveSummary: result.executiveSummary || result.portfolioSummary || "",
-        marketConditions: result.marketConditions || result.marketContext || {},
-        criticalAlerts: Array.isArray(result.criticalAlerts) ? result.criticalAlerts : [],
-        accounts: result.accounts || {},
-        ideasToday: Array.isArray(result.ideasToday) ? result.ideasToday : Array.isArray(result.bestPlays) ? result.bestPlays : [],
-        ideasThisWeek: Array.isArray(result.ideasThisWeek) ? result.ideasThisWeek : [],
-        ideasSwing: Array.isArray(result.ideasSwing) ? result.ideasSwing : [],
-        ideasLeaps: Array.isArray(result.ideasLeaps) ? result.ideasLeaps : [],
-      });
+      setAnalysis(normalizeAnalysis(result));
+      setAnalysisTimestamp(result._meta?.analyzedAt || new Date().toISOString());
     } catch (err: any) { setAnalyzeError(err.message || "Analysis failed"); }
     finally { setAnalyzing(false); setAnalyzeProgress(""); }
   };
@@ -403,6 +426,12 @@ export default function UploadPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {analysisTimestamp && (
+            <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1.5">
+              <Clock size={10} className="text-emerald-500/60" />
+              Last analyzed: {new Date(analysisTimestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
+            </span>
+          )}
           {files.length > 0 && <button onClick={clearAll} className="px-2.5 py-1 rounded text-[10px] text-slate-500 hover:text-slate-300 border border-slate-800 hover:border-slate-600 transition-colors">Clear</button>}
           <span className="text-[10px] text-slate-600 font-mono">{files.length}/10</span>
         </div>
@@ -410,8 +439,15 @@ export default function UploadPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-5">
 
+        {/* ═══ LOADING PREVIOUS ═══════════════════════════════════════════════ */}
+        {loadingPrevious && !analysis && (
+          <div className="flex items-center justify-center py-8 gap-2 text-slate-500 text-sm">
+            <RefreshCw size={14} className="animate-spin" /> Loading previous analysis...
+          </div>
+        )}
+
         {/* ═══ DROP ZONE ═══════════════════════════════════════════════════════ */}
-        {(!analysis || files.length === 0) && (
+        {(!analysis || files.length === 0) && !loadingPrevious && (
           <div className="rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 py-8 flex flex-col items-center justify-center gap-2"
             style={{ borderColor: isDragging ? "#d4a843" : "#1a2332", background: isDragging ? "#d4a8430a" : "#0c1018" }}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}

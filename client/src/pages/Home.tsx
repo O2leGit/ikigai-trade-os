@@ -79,7 +79,6 @@ const BASE_NAV_ITEMS: NavItem[] = [
   { id: "earnings-plays", label: "Earnings Plays", icon: <DollarSign className="w-4 h-4" />, layer: "Full Analysis" },
   { id: "trading-ideas", label: "Trading Ideas", icon: <Target className="w-4 h-4" />, layer: "Full Analysis" },
   // Layer 4: Deep Dive
-  { id: "deep-dive", label: "Deep Dive Tools", icon: <ExternalLink className="w-4 h-4" />, layer: "Deep Dive" },
 ];
 const PORTFOLIO_NAV_ITEM: NavItem = { id: "portfolio-review", label: "Portfolio Review", icon: <Briefcase className="w-4 h-4" />, layer: "At a Glance" };
 
@@ -1390,31 +1389,6 @@ export default function Home() {
             )}
 
             {/* ═══════════════════════════════════════════════════════ */}
-            {/* LAYER 4: DEEP DIVE                                     */}
-            {/* ═══════════════════════════════════════════════════════ */}
-            <section id="deep-dive" className="scroll-mt-16 pb-16">
-              <div className="pt-4 border-t border-border">
-                <LayerHeader layer="4" title="Deep Dive" subtitle="External analysis tools" icon={<ExternalLink className="w-5 h-5" />} />
-              </div>
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {DEEP_DIVE_TOOLS.map((tool) => (
-                  <a
-                    key={tool.name}
-                    href={tool.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group p-4 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <span className="text-[9px] font-mono text-primary/60 uppercase tracking-wider">{tool.category}</span>
-                      <ExternalLink className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{tool.name}</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">{tool.description}</p>
-                  </a>
-                ))}
-              </div>
-            </section>
 
           </div>
         </main>

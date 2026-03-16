@@ -104,35 +104,77 @@ export default async function handler(req: Request, _context: Context) {
     // Mark as in-progress
     await store.setJSON("analysis-status", { status: "analyzing", startedAt: now.toISOString() });
 
-    // Fetch live market data
-    console.log("Fetching market data for position analysis...");
-    const marketSymbols = [
-      { yahoo: "%5EGSPC", name: "S&P 500" },
-      { yahoo: "%5EVIX", name: "VIX" },
-      { yahoo: "SPY", name: "SPY" },
-      { yahoo: "QQQ", name: "QQQ" },
-      { yahoo: "IWM", name: "IWM" },
-      { yahoo: "DIA", name: "DIA" },
-      { yahoo: "GLD", name: "GLD" },
-      { yahoo: "TLT", name: "TLT" },
-      { yahoo: "XLE", name: "XLE" },
-      { yahoo: "XLK", name: "XLK" },
-      { yahoo: "XLF", name: "XLF" },
-      { yahoo: "XLU", name: "XLU" },
-    ];
+    // ── Pull latest daily briefing from Blobs for market context ──────────
+    const briefingStore = getStore("briefings");
+    let briefingContext = "";
+    try {
+      const briefing = await briefingStore.get("latest", { type: "json" }) as any;
+      if (briefing) {
+        const parts: string[] = [];
+        // Market regime & fear gauge
+        if (briefing.marketRegime) {
+          const mr = briefing.marketRegime;
+          parts.push(`MARKET REGIME: ${mr.classification || "Unknown"} -- ${mr.description || ""}`);
+          if (mr.bestStrategies) parts.push(`Best strategies: ${Array.isArray(mr.bestStrategies) ? mr.bestStrategies.join(", ") : mr.bestStrategies}`);
+        }
+        if (briefing.fearGauge) {
+          const fg = briefing.fearGauge;
+          parts.push(`VIX: ${fg.vix} (${fg.vixTrend || ""}) | IV Rank: ${fg.ivRank || "?"} | Put/Call: ${fg.putCallRatio || "?"} (${fg.putCallSignal || ""}) | Fear: ${fg.fearLevel || "?"}`);
+        }
+        // Key levels
+        if (Array.isArray(briefing.keyLevels)) {
+          parts.push("KEY LEVELS: " + briefing.keyLevels.map((kl: any) => `${kl.symbol || kl.name}: $${kl.price} (S:${kl.support} R:${kl.resistance} ${kl.trend || ""})`).join(" | "));
+        }
+        // Executive view
+        if (briefing.executiveView) parts.push(`EXECUTIVE VIEW: ${briefing.executiveView}`);
+        // AI Summary paragraphs
+        if (briefing.aiSummary?.paragraphs) {
+          parts.push("AI BRIEF: " + (Array.isArray(briefing.aiSummary.paragraphs) ? briefing.aiSummary.paragraphs.join(" ") : ""));
+        }
+        // Sector rotation
+        if (Array.isArray(briefing.sectorRotation)) {
+          parts.push("SECTORS: " + briefing.sectorRotation.map((s: any) => `${s.sector || s.name}: ${s.signal || s.direction || ""}`).join(", "));
+        }
+        // Decision summary
+        if (briefing.decisionSummary) {
+          const ds = briefing.decisionSummary;
+          if (ds.bestOpportunityToday) parts.push(`BEST OPP TODAY: ${ds.bestOpportunityToday}`);
+          if (ds.biggestRiskToWatch) parts.push(`BIGGEST RISK: ${ds.biggestRiskToWatch}`);
+        }
+        // Macro conditions
+        if (Array.isArray(briefing.macroConditions)) {
+          parts.push("MACRO: " + briefing.macroConditions.map((m: any) => `${m.factor || m.name}: ${m.status || m.signal || ""}`).join(", "));
+        }
+        briefingContext = parts.join("\n");
+        const age = briefing._meta?.generatedAt ? Math.round((now.getTime() - new Date(briefing._meta.generatedAt).getTime()) / 60000) : null;
+        console.log(`Loaded daily briefing (${age !== null ? age + "m old" : "age unknown"}), ${parts.length} context sections`);
+      }
+    } catch (e) {
+      console.log("Could not load briefing context, will use live quotes only");
+    }
 
-    // Also fetch quotes for underlying symbols in the portfolio
+    // ── Fetch live quotes for portfolio tickers not in briefing ───────────
+    console.log("Fetching live quotes for portfolio tickers...");
     const uniqueSymbols = [...new Set(
       positions
         .map((p: any) => p.underlying || p.symbol)
         .filter((s: string) => s && s.length <= 5 && !s.includes(" "))
     )];
-    const portfolioSymbols = uniqueSymbols.slice(0, 15).map((s: string) => ({ yahoo: s, name: s }));
-
-    const allSymbols = [...marketSymbols, ...portfolioSymbols];
+    // Always fetch core indices + portfolio tickers for current prices
+    const coreSymbols = [
+      { yahoo: "%5EGSPC", name: "S&P 500" },
+      { yahoo: "%5EVIX", name: "VIX" },
+    ];
+    const portfolioSymbols = uniqueSymbols.slice(0, 20).map((s: string) => ({ yahoo: s, name: s }));
+    const allSymbols = [...coreSymbols, ...portfolioSymbols];
     const marketResults = await Promise.all(allSymbols.map(s => fetchYahooSymbol(s.yahoo, s.name)));
-    const marketData = marketResults.join("\n");
-    console.log("Market data fetched, calling Claude for analysis...");
+    const liveQuotes = marketResults.join("\n");
+    console.log(`Fetched ${allSymbols.length} live quotes, calling Claude for analysis...`);
+
+    // Combine: briefing context (rich) + live quotes (current prices)
+    const marketData = briefingContext
+      ? `── FROM TODAY'S MARKET BRIEFING ──\n${briefingContext}\n\n── LIVE QUOTES (real-time) ──\n${liveQuotes}`
+      : liveQuotes;
 
     // Format positions grouped by account
     const accountGroups: Record<string, any[]> = {};

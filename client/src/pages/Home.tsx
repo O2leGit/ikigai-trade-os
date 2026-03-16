@@ -320,6 +320,12 @@ export default function Home() {
                 Briefing Archive
               </button>
             </Link>
+            <Link href="/report-archive">
+              <button className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+                <FileText className="w-4 h-4" />
+                Report Archive
+              </button>
+            </Link>
             {isAdmin && (
               <>
                 <Link href="/upload">

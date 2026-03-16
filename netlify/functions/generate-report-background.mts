@@ -208,9 +208,38 @@ export default async function handler(_req: Request, _context: Context) {
       return;
     }
 
-    // Store report
-    report._meta = { generatedAt: now.toISOString(), model: "claude-sonnet-4-20250514" };
+    // Store report with edition metadata
+    const edition = getReportEdition(now);
+    report._meta = {
+      generatedAt: now.toISOString(),
+      model: "claude-sonnet-4-20250514",
+      editionKey: edition.title.toLowerCase().includes("pre-market") ? "premarket"
+        : edition.title.toLowerCase().includes("intraday") ? "intraday"
+        : edition.title.toLowerCase().includes("end of day") ? "eod"
+        : edition.title.toLowerCase().includes("end of week") ? "endofweek"
+        : edition.title.toLowerCase().includes("week ahead") ? "weekahead"
+        : "other",
+      editionLabel: edition.title,
+    };
+    const edKey = report._meta.editionKey;
     await store.setJSON(`daily/${todayKey}`, report);
+    await store.setJSON(`archive/${todayKey}/${edKey}`, report);
+
+    // Update report archive index
+    try {
+      const indexRaw = await store.get("archive-index");
+      const index: any[] = indexRaw ? JSON.parse(indexRaw) : [];
+      index.unshift({
+        date: todayKey,
+        edition: edKey,
+        editionLabel: edition.title,
+        title: report.title || edition.title,
+        tagline: report.tagline || "",
+        generatedAt: now.toISOString(),
+      });
+      await store.set("archive-index", JSON.stringify(index.slice(0, 120)));
+    } catch { /* non-fatal */ }
+
     await store.setJSON(`status/${todayKey}`, { status: "ready", generatedAt: now.toISOString() });
     console.log(`Report generated and stored for ${todayKey}`);
 

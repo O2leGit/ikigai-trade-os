@@ -344,7 +344,8 @@ export default function UploadPage() {
       const allPositions = files.flatMap(f => f.positions.map(p => ({ account: f.accountId, ...p })));
       const portfolioSummary = files.map(f => `Account ${f.accountId}: NLV ${fmt(f.nlv)}, Open P&L ${fmt(f.openPnl)}, ${f.positions.length} positions (${f.statementDate})`).join("\n");
       const triggerTime = new Date().toISOString();
-      const triggerRes = await fetch("/api/analyze-positions-background", {
+      // MUST use direct path for background functions -- /api/* redirect strips -background semantics
+      const triggerRes = await fetch("/.netlify/functions/analyze-positions-background", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ positions: allPositions, portfolioSummary, totalNlv, totalPnl }),
       });
@@ -352,7 +353,7 @@ export default function UploadPage() {
 
       setAnalyzeProgress("AI analyzing positions against live market data...");
       let result: any = null;
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 60; i++) {
         await new Promise(r => setTimeout(r, 3000));
         const statusRes = await fetch(`/api/analysis-status?_t=${Date.now()}`);
         if (!statusRes.ok) continue;
@@ -363,11 +364,13 @@ export default function UploadPage() {
           break;
         }
         if (status.status === "error" && (!status.at || status.at > triggerTime)) throw new Error(status.error || "Analysis failed");
-        if (i === 8) setAnalyzeProgress("Reviewing each position against market conditions...");
-        if (i === 16) setAnalyzeProgress("Generating trade recommendations across time horizons...");
-        if (i === 24) setAnalyzeProgress("Finalizing institutional-grade report...");
+        if (i === 5) setAnalyzeProgress("Pulling daily briefing context & live quotes...");
+        if (i === 12) setAnalyzeProgress("Reviewing each position against market conditions...");
+        if (i === 20) setAnalyzeProgress("Generating trade recommendations across time horizons...");
+        if (i === 30) setAnalyzeProgress("Finalizing institutional-grade report...");
+        if (i === 45) setAnalyzeProgress("Still working... large portfolio takes longer...");
       }
-      if (!result) throw new Error("Analysis timed out after 120s");
+      if (!result) throw new Error("Analysis timed out after 180s");
 
       // Defensive normalization
       setAnalysis({

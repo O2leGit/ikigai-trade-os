@@ -1177,42 +1177,166 @@ export default function Home() {
 
             {/* ── EARNINGS PLAYS ── */}
             <CollapsibleSection id="earnings-plays" title="Earnings Plays" icon={<DollarSign className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
-              <div className="mt-4 space-y-4">
-                {EARNINGS_PLAYS.map((ep) => (
-                  <div key={ep.ticker} className="p-4 rounded-lg border border-border bg-card">
-                    <div className="flex flex-wrap items-center gap-3 mb-3">
-                      <span className="text-lg font-mono font-bold text-primary">{ep.ticker}</span>
-                      <span className="text-sm text-muted-foreground">{ep.company}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground border border-border px-1.5 py-0.5 rounded">{ep.reportDate}</span>
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
-                        (ep.setup || "").includes("SHORT") ? "text-bear border-bear/30 bg-bear/10"
-                        : (ep.setup || "").includes("LONG") ? "text-bull border-bull/30 bg-bull/10"
-                        : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10"}`}>
-                        {ep.setup}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 text-xs">
-                      <div><span className="text-muted-foreground">EPS Est: </span><span className="font-mono">{ep.consensus.eps}</span></div>
-                      <div><span className="text-muted-foreground">Rev Est: </span><span className="font-mono">{ep.consensus.revenue}</span></div>
-                      <div><span className="text-muted-foreground">Impl. Move: </span><span className="font-mono">{ep.impliedMove}</span></div>
-                      <div><span className="text-muted-foreground">Whisper: </span><span className="font-mono">{ep.consensus.whisper}</span></div>
-                    </div>
-                    <p className="text-xs text-foreground/80 leading-relaxed mb-2">{ep.thesis}</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div className="p-2 rounded bg-bull/5 border border-bull/20">
-                        <span className="text-bull font-semibold">Bull: </span>{ep.bullCase}
+              {/* Live Earnings Calendar */}
+              {liveData.earnings && (liveData.earnings.upcoming.length > 0 || liveData.earnings.recent.length > 0) ? (
+                <div className="mt-4 space-y-6">
+                  {/* ── UPCOMING EARNINGS ── */}
+                  {liveData.earnings.upcoming.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Upcoming Earnings</h3>
+                        <span className="text-[10px] text-muted-foreground font-mono">{liveData.earnings.upcoming.length} reports</span>
                       </div>
-                      <div className="p-2 rounded bg-bear/5 border border-bear/20">
-                        <span className="text-bear font-semibold">Bear: </span>{ep.bearCase}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider">
+                              <th className="text-left py-2 px-2">Ticker</th>
+                              <th className="text-left py-2 px-2">Date</th>
+                              <th className="text-center py-2 px-2">When</th>
+                              <th className="text-right py-2 px-2">EPS Est</th>
+                              <th className="text-right py-2 px-2">Rev Est</th>
+                              <th className="text-center py-2 px-2">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {liveData.earnings.upcoming.map((e) => (
+                              <tr key={`${e.ticker}-${e.date}`} className="border-b border-border/30 hover:bg-primary/5 transition-colors">
+                                <td className="py-2.5 px-2 font-mono font-bold text-primary text-sm">{e.ticker}</td>
+                                <td className="py-2.5 px-2 font-mono text-foreground/80">{e.date}</td>
+                                <td className="py-2.5 px-2 text-center">
+                                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${e.time === "BMO" ? "bg-amber-900/20 text-amber-400 border border-amber-600/20" : "bg-purple-900/20 text-purple-400 border border-purple-600/20"}`}>
+                                    {e.time}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-2 text-right font-mono">{e.epsEstimate}</td>
+                                <td className="py-2.5 px-2 text-right font-mono">{e.revenueEstimate}</td>
+                                <td className="py-2.5 px-2 text-center">
+                                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-900/20 text-cyan-400 border border-cyan-600/20">UPCOMING</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                    <div className="mt-2 p-2 rounded bg-secondary/50 border border-border text-xs">
-                      <span className="text-primary font-semibold">Trade Structure: </span>{ep.tradeStructure}
+                  )}
+
+                  {/* ── RECENT RESULTS ── */}
+                  {liveData.earnings.recent.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart className="w-4 h-4 text-muted-foreground" />
+                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Recent Results</h3>
+                        <span className="text-[10px] text-muted-foreground font-mono">Past 7 days</span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider">
+                              <th className="text-left py-2 px-2">Ticker</th>
+                              <th className="text-left py-2 px-2">Date</th>
+                              <th className="text-center py-2 px-2">Result</th>
+                              <th className="text-right py-2 px-2">EPS Est</th>
+                              <th className="text-right py-2 px-2">EPS Actual</th>
+                              <th className="text-right py-2 px-2">Surprise</th>
+                              <th className="text-left py-2 px-2">Reaction</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {liveData.earnings.recent.map((e) => (
+                              <tr key={`${e.ticker}-${e.date}`} className="border-b border-border/30 hover:bg-primary/5 transition-colors">
+                                <td className="py-2.5 px-2 font-mono font-bold text-primary text-sm">{e.ticker}</td>
+                                <td className="py-2.5 px-2 font-mono text-foreground/80">{e.date}</td>
+                                <td className="py-2.5 px-2 text-center">
+                                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                                    e.status === "BEAT" ? "text-bull border-bull/30 bg-bull/10"
+                                    : e.status === "MISS" ? "text-bear border-bear/30 bg-bear/10"
+                                    : e.status === "MIXED" ? "text-yellow-400 border-yellow-600/30 bg-yellow-900/10"
+                                    : "text-muted-foreground border-border bg-secondary/50"
+                                  }`}>{e.status}</span>
+                                </td>
+                                <td className="py-2.5 px-2 text-right font-mono text-foreground/60">{e.epsEstimate}</td>
+                                <td className="py-2.5 px-2 text-right font-mono font-bold">{e.epsActual}</td>
+                                <td className={`py-2.5 px-2 text-right font-mono font-bold ${
+                                  e.epsSurprise.startsWith("+") ? "text-bull" : e.epsSurprise.startsWith("-") ? "text-bear" : "text-foreground/60"
+                                }`}>{e.epsSurprise}</td>
+                                <td className="py-2.5 px-2 text-xs text-foreground/70 max-w-[200px] truncate">{e.reaction}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1.5 font-mono">{ep.keyLevels}</p>
+                  )}
+
+                  {liveData.earnings.fetchedAt && (
+                    <p className="text-[9px] text-muted-foreground font-mono">
+                      Updated: {new Date(liveData.earnings.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} via Finnhub
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              {/* AI-Generated Earnings Plays (from daily briefing) */}
+              {EARNINGS_PLAYS.length > 0 && (
+                <div className={liveData.earnings ? "mt-6" : "mt-4"}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">AI Trade Recommendations</h3>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-900/20 text-amber-300 border border-amber-600/20">From Daily Briefing</span>
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-4">
+                    {EARNINGS_PLAYS.map((ep) => (
+                      <div key={ep.ticker} className="p-4 rounded-lg border border-border bg-card">
+                        <div className="flex flex-wrap items-center gap-3 mb-3">
+                          <span className="text-lg font-mono font-bold text-primary">{ep.ticker}</span>
+                          <span className="text-sm text-muted-foreground">{ep.company}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground border border-border px-1.5 py-0.5 rounded">{ep.reportDate}</span>
+                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                            (ep.setup || "").includes("SHORT") ? "text-bear border-bear/30 bg-bear/10"
+                            : (ep.setup || "").includes("LONG") ? "text-bull border-bull/30 bg-bull/10"
+                            : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10"}`}>
+                            {ep.setup}
+                          </span>
+                          {ep.conviction && (
+                            <ConvictionBadge conviction={ep.conviction} />
+                          )}
+                          {ep.expectedMove && (
+                            <span className="text-[10px] font-mono text-muted-foreground">Exp. Move: {ep.expectedMove}</span>
+                          )}
+                        </div>
+                        {/* Trade structure */}
+                        {(ep.trade || ep.tradeStructure) && (
+                          <div className="mb-3 p-2 rounded bg-primary/5 border border-primary/20 text-xs">
+                            <span className="text-primary font-semibold">Trade: </span>
+                            <span className="font-mono">{ep.trade || ep.tradeStructure}</span>
+                          </div>
+                        )}
+                        {/* Thesis */}
+                        {ep.thesis && <p className="text-xs text-foreground/80 leading-relaxed mb-2">{ep.thesis}</p>}
+                        {/* Bull/Bear */}
+                        {(ep.bullCase || ep.bearCase) && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {ep.bullCase && (
+                              <div className="p-2 rounded bg-bull/5 border border-bull/20">
+                                <span className="text-bull font-semibold">Bull: </span>{ep.bullCase}
+                              </div>
+                            )}
+                            {ep.bearCase && (
+                              <div className="p-2 rounded bg-bear/5 border border-bear/20">
+                                <span className="text-bear font-semibold">Bear: </span>{ep.bearCase}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {ep.keyLevels && <p className="text-[10px] text-muted-foreground mt-1.5 font-mono">{ep.keyLevels}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CollapsibleSection>
 
             {/* ── TRADING IDEAS ── */}

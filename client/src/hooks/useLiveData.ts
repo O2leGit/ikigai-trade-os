@@ -42,6 +42,26 @@ export interface SectorItem {
   note?: string;
 }
 
+export interface EarningsItem {
+  ticker: string;
+  date: string;
+  time: string;
+  epsEstimate: string;
+  epsActual: string;
+  epsSurprise: string;
+  revenueEstimate: string;
+  revenueActual: string;
+  revenueSurprise: string;
+  status: "UPCOMING" | "BEAT" | "MISS" | "MIXED" | "REPORTED";
+  reaction: string;
+}
+
+export interface EarningsData {
+  upcoming: EarningsItem[];
+  recent: EarningsItem[];
+  fetchedAt: string;
+}
+
 interface LiveDataState {
   marketSnapshot: MarketItem[] | null;
   news: NewsItem[] | null;
@@ -49,6 +69,7 @@ interface LiveDataState {
   newsSources: string[];
   calendar: CalendarEvent[] | null;
   sectors: SectorItem[] | null;
+  earnings: EarningsData | null;
   lastUpdated: Date | null;
   isLoading: boolean;
 }
@@ -63,6 +84,7 @@ export function useLiveData() {
     newsSources: [],
     calendar: null,
     sectors: null,
+    earnings: null,
     lastUpdated: null,
     isLoading: false,
   });
@@ -90,12 +112,10 @@ export function useLiveData() {
   const fetchNews = useCallback(async (): Promise<{ items: NewsItem[]; fetchedAt: string; sources: string[] } | null> => {
     const key = localStorage.getItem("ikigai-apikey-finnhub");
     try {
-      // Build URL -- Finnhub key optional now (MarketAux may be server-side)
       const params = key ? `?key=${encodeURIComponent(key)}` : "";
       const res = await fetch(`/api/news${params}`);
       if (!res.ok) return null;
       const json = await res.json();
-      // Handle both old format (array) and new format ({ items, fetchedAt, sources })
       if (Array.isArray(json)) {
         return { items: json, fetchedAt: new Date().toISOString(), sources: ["Finnhub"] };
       }
@@ -121,14 +141,27 @@ export function useLiveData() {
     }
   }, []);
 
+  const fetchEarnings = useCallback(async (): Promise<EarningsData | null> => {
+    const key = localStorage.getItem("ikigai-apikey-finnhub");
+    if (!key) return null;
+    try {
+      const res = await fetch(`/api/earnings-calendar?key=${encodeURIComponent(key)}`);
+      if (!res.ok) return null;
+      return (await res.json()) as EarningsData;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const refreshAll = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true }));
 
-    const [market, sectors, newsResult, calendar] = await Promise.all([
+    const [market, sectors, newsResult, calendar, earnings] = await Promise.all([
       fetchMarketData(),
       fetchSectors(),
       fetchNews(),
       fetchCalendar(),
+      fetchEarnings(),
     ]);
 
     setState({
@@ -138,10 +171,11 @@ export function useLiveData() {
       newsFetchedAt: newsResult?.fetchedAt || null,
       newsSources: newsResult?.sources || [],
       calendar,
+      earnings,
       lastUpdated: new Date(),
       isLoading: false,
     });
-  }, [fetchMarketData, fetchSectors, fetchNews, fetchCalendar]);
+  }, [fetchMarketData, fetchSectors, fetchNews, fetchCalendar, fetchEarnings]);
 
   // Initial fetch + 60s interval
   useEffect(() => {

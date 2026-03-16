@@ -1487,56 +1487,186 @@ function TradeStatusBadge({ status }: { status: string }) {
   );
 }
 
-/// ─── SECTOR HEATMAP ─────────────────────────────────────────
+/// ─── SECTOR ROTATION DASHBOARD ─────────────────────────────
 type SectorEntry = { sector: string; ytd: string; status: "LEADING" | "NEUTRAL" | "LAGGING"; note: string };
 
 function SectorHeatmap({ sectors }: { sectors: SectorEntry[] }) {
-  const parseYtd = (ytd: string) => parseFloat(ytd.replace("%", ""));
-  const maxAbs = Math.max(...sectors.map((s) => Math.abs(parseYtd(s.ytd))));
+  const parseYtd = (ytd: string) => parseFloat(ytd.replace(/[^0-9.\-+]/g, "")) || 0;
+  const parseChange = (note: string) => {
+    const m = note.match(/Day change:\s*([+-]?[\d.]+)%/);
+    return m ? parseFloat(m[1]) : 0;
+  };
+  const parsePrice = (note: string) => {
+    const m = note.match(/\$(\d+\.?\d*)/);
+    return m ? parseFloat(m[1]) : 0;
+  };
 
-  const borderColor = (s: SectorEntry["status"]) =>
-    s === "LEADING" ? "border-l-bull" : s === "LAGGING" ? "border-l-bear" : "border-l-yellow-500";
-  const barBg = (s: SectorEntry["status"]) =>
-    s === "LEADING" ? "bg-bull" : s === "LAGGING" ? "bg-bear" : "bg-yellow-500";
-  const badgeClass = (s: SectorEntry["status"]) =>
-    s === "LEADING"
-      ? "text-bull border-bull/30 bg-bull/10"
-      : s === "LAGGING"
-      ? "text-bear border-bear/30 bg-bear/10"
-      : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
-  const ytdClass = (ytd: string) => ytd.startsWith("+") ? "text-bull" : "text-bear";
+  // Sort by day change for ranked view
+  const sorted = [...sectors].sort((a, b) => parseChange(b.note) - parseChange(a.note));
+  const maxAbsChange = Math.max(...sectors.map((s) => Math.abs(parseChange(s.note))), 0.5);
+
+  // Heatmap color: red-to-green based on day change intensity
+  const heatColor = (change: number) => {
+    const intensity = Math.min(Math.abs(change) / 2.5, 1); // 2.5% = full saturation
+    if (change > 0.05) {
+      // Green spectrum
+      const r = Math.round(10 + (1 - intensity) * 15);
+      const g = Math.round(40 + intensity * 160);
+      const b = Math.round(20 + (1 - intensity) * 10);
+      return `rgb(${r}, ${g}, ${b})`;
+    } else if (change < -0.05) {
+      // Red spectrum
+      const r = Math.round(40 + intensity * 180);
+      const g = Math.round(15 + (1 - intensity) * 15);
+      const b = Math.round(15 + (1 - intensity) * 10);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    return "rgb(40, 40, 50)"; // Neutral gray
+  };
+
+  // Extract ticker from sector name like "Technology (XLK)"
+  const extractTicker = (sector: string) => {
+    const m = sector.match(/\(([A-Z]+)\)/);
+    return m ? m[1] : "";
+  };
+  const extractName = (sector: string) => sector.replace(/\s*\([A-Z]+\)/, "");
+
+  // Leaders and laggards
+  const leaders = sorted.slice(0, 3);
+  const laggards = sorted.slice(-3).reverse();
 
   return (
-    <div className="mt-4 space-y-2">
-      {sectors.map((sec) => {
-        const val = parseYtd(sec.ytd);
-        const pct = (Math.abs(val) / maxAbs) * 100;
+    <div className="mt-4 space-y-4">
+      {/* ── Heatmap Grid ── */}
+      <div>
+        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Performance Heatmap (Day Change)</p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1.5">
+          {sorted.map((sec) => {
+            const change = parseChange(sec.note);
+            const price = parsePrice(sec.note);
+            const ticker = extractTicker(sec.sector);
+            return (
+              <div
+                key={sec.sector}
+                className="relative p-3 rounded-lg border border-white/5 text-center transition-all hover:scale-[1.03] hover:z-10 hover:border-white/20 cursor-default"
+                style={{ backgroundColor: heatColor(change) }}
+              >
+                <p className="text-[10px] font-bold text-white/90 tracking-wider">{ticker}</p>
+                <p className="text-lg font-mono font-bold text-white mt-0.5">
+                  {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                </p>
+                <p className="text-[9px] font-mono text-white/60 mt-0.5">${price.toFixed(0)}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Leaders vs Laggards ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Leaders */}
+        <div className="p-3 rounded-lg border border-bull/20 bg-bull/5">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-3.5 h-3.5 text-bull" />
+            <span className="text-[10px] font-bold text-bull uppercase tracking-wider">Leaders</span>
+          </div>
+          <div className="space-y-1.5">
+            {leaders.map((sec, i) => {
+              const change = parseChange(sec.note);
+              const ticker = extractTicker(sec.sector);
+              const name = extractName(sec.sector);
+              return (
+                <div key={sec.sector} className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-bull/60 w-4">{i + 1}.</span>
+                  <span className="text-xs font-mono font-bold text-bull">{ticker}</span>
+                  <span className="text-[10px] text-foreground/50 truncate flex-1">{name}</span>
+                  <span className="text-xs font-mono font-bold text-bull">+{change.toFixed(2)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* Laggards */}
+        <div className="p-3 rounded-lg border border-bear/20 bg-bear/5">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingDown className="w-3.5 h-3.5 text-bear" />
+            <span className="text-[10px] font-bold text-bear uppercase tracking-wider">Laggards</span>
+          </div>
+          <div className="space-y-1.5">
+            {laggards.map((sec, i) => {
+              const change = parseChange(sec.note);
+              const ticker = extractTicker(sec.sector);
+              const name = extractName(sec.sector);
+              return (
+                <div key={sec.sector} className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-bear/60 w-4">{i + 1}.</span>
+                  <span className="text-xs font-mono font-bold text-bear">{ticker}</span>
+                  <span className="text-[10px] text-foreground/50 truncate flex-1">{name}</span>
+                  <span className="text-xs font-mono font-bold text-bear">{change >= 0 ? "+" : ""}{change.toFixed(2)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Ranked Bar Chart ── */}
+      <div>
+        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Relative Performance (Ranked)</p>
+        <div className="space-y-1">
+          {sorted.map((sec) => {
+            const change = parseChange(sec.note);
+            const ticker = extractTicker(sec.sector);
+            const barWidth = Math.max((Math.abs(change) / maxAbsChange) * 100, 2);
+            const isPositive = change >= 0;
+            return (
+              <div key={sec.sector} className="flex items-center gap-2 group">
+                <span className="text-[10px] font-mono font-bold text-foreground/70 w-10 text-right flex-shrink-0">{ticker}</span>
+                <div className="flex-1 h-5 relative bg-card rounded overflow-hidden border border-border/50">
+                  {/* Center line */}
+                  <div className="absolute inset-y-0 left-1/2 w-px bg-foreground/10 z-10" />
+                  {/* Bar */}
+                  <div
+                    className={`absolute inset-y-0 rounded transition-all ${isPositive ? "bg-bull/60" : "bg-bear/60"}`}
+                    style={{
+                      width: `${barWidth / 2}%`,
+                      ...(isPositive ? { left: "50%" } : { right: "50%" }),
+                    }}
+                  />
+                </div>
+                <span className={`text-[10px] font-mono font-bold w-14 text-right flex-shrink-0 ${isPositive ? "text-bull" : "text-bear"}`}>
+                  {isPositive ? "+" : ""}{change.toFixed(2)}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Rotation Signal ── */}
+      {(() => {
+        const leadingCount = sectors.filter(s => s.status === "LEADING").length;
+        const laggingCount = sectors.filter(s => s.status === "LAGGING").length;
+        const topSectors = sorted.slice(0, 3).map(s => extractTicker(s.sector));
+        const isDefensive = topSectors.some(t => ["XLU", "XLP", "XLV"].includes(t));
+        const isCyclical = topSectors.some(t => ["XLK", "XLY", "XLI", "XLF"].includes(t));
+        const signal = isDefensive && !isCyclical ? "RISK-OFF" : isCyclical && !isDefensive ? "RISK-ON" : "MIXED";
+        const signalColor = signal === "RISK-ON" ? "text-bull border-bull/30 bg-bull/10" : signal === "RISK-OFF" ? "text-bear border-bear/30 bg-bear/10" : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
         return (
-          <div
-            key={sec.sector}
-            className={`relative flex items-start gap-4 p-3 rounded-lg border border-border bg-card border-l-4 overflow-hidden ${borderColor(sec.status)}`}
-          >
-            {/* Performance bar as subtle background layer */}
-            <div
-              className={`absolute inset-y-0 left-0 opacity-[0.06] pointer-events-none ${barBg(sec.status)}`}
-              style={{ width: `${pct}%` }}
-            />
-            {/* Sector name + YTD */}
-            <div className="relative flex-shrink-0 w-40">
-              <p className="text-xs font-semibold text-foreground">{sec.sector}</p>
-              <p className={`text-sm font-mono font-bold mt-0.5 ${ytdClass(sec.ytd)}`}>{sec.ytd}</p>
-            </div>
-            {/* Badge */}
-            <div className="relative flex-shrink-0 pt-0.5">
-              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${badgeClass(sec.status)}`}>
-                {sec.status}
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Rotation Signal</span>
+              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${signalColor}`}>{signal}</span>
+              <span className="text-[10px] text-muted-foreground">
+                {leadingCount} leading · {laggingCount} lagging
+              </span>
+              <span className="text-[10px] text-foreground/60 italic ml-auto">
+                {isDefensive ? "Defensive sectors leading -- favor premium selling, hedges" : isCyclical ? "Cyclical sectors leading -- favor directional longs, momentum" : "Mixed leadership -- stay neutral, sell premium"}
               </span>
             </div>
-            {/* Note */}
-            <p className="relative flex-1 text-xs text-foreground/70 leading-relaxed">{sec.note}</p>
           </div>
         );
-      })}
+      })()}
     </div>
   );
 }

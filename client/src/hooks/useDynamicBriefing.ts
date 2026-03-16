@@ -244,6 +244,28 @@ function normalizeMacroConditions(v: any): any[] | null {
   return null;
 }
 
+// ── Earnings Plays ──
+function normalizeEarningsPlays(v: any): any[] | null {
+  if (!Array.isArray(v) || v.length === 0) return null;
+  const first = v[0];
+  if (first.ticker && (first.trade || first.setup || first.company)) {
+    return v.map((ep: any) => ({
+      ticker: ep.ticker || "—",
+      company: ep.company || ep.name || ep.ticker || "—",
+      reportDate: ep.reportDate || ep.date || "TBD",
+      reportTime: ep.reportTime || ep.time || "TBD",
+      setup: (ep.setup || "NEUTRAL").toUpperCase(),
+      conviction: (ep.conviction || "MEDIUM").toUpperCase(),
+      trade: ep.trade || ep.strategy || ep.play || "—",
+      bullCase: ep.bullCase || ep.bull || "",
+      bearCase: ep.bearCase || ep.bear || "",
+      keyLevels: ep.keyLevels || ep.levels || "",
+      expectedMove: ep.expectedMove || ep.move || "",
+    }));
+  }
+  return null;
+}
+
 function mergeBriefing(live: Record<string, unknown>) {
   return {
     BRIEFING_DATE: typeof live.briefingDate === "string" ? live.briefingDate : staticData.BRIEFING_DATE,
@@ -267,7 +289,7 @@ function mergeBriefing(live: Record<string, unknown>) {
     EVENT_CALENDAR: staticData.EVENT_CALENDAR,
     SEASONAL_CONTEXT: staticData.SEASONAL_CONTEXT,
     PRIOR_SESSION_GRADES: staticData.PRIOR_SESSION_GRADES,
-    EARNINGS_PLAYS: staticData.EARNINGS_PLAYS,
+    EARNINGS_PLAYS: normalizeEarningsPlays(live.earningsPlays) || staticData.EARNINGS_PLAYS,
     ACCOUNTS: staticData.ACCOUNTS,
     CROSS_ACCOUNT_RISKS: staticData.CROSS_ACCOUNT_RISKS,
     ACCOUNT_HISTORY: staticData.ACCOUNT_HISTORY,

@@ -131,10 +131,7 @@ export function useLiveData() {
 
   const fetchCalendar = useCallback(async () => {
     try {
-      // Server uses FINNHUB_KEY env var; optionally pass localStorage key as fallback
-      const key = localStorage.getItem("ikigai-apikey-finnhub");
-      const url = key ? `/api/economic-calendar?key=${encodeURIComponent(key)}` : `/api/economic-calendar`;
-      const res = await fetch(url);
+      const res = await fetch("/api/static-calendar");
       if (!res.ok) return null;
       return (await res.json()) as CalendarEvent[];
     } catch {

@@ -1,19 +1,27 @@
 import type { Config, Context } from "@netlify/functions";
 
-// Scheduled function: runs at 4 key market times daily
-// Pre-market: 6:00 AM CT (11:00 UTC) weekdays
-// Intraday:   11:30 AM CT (16:30 UTC) weekdays
-// End of day:  3:30 PM CT (20:30 UTC) weekdays
-// Weekend:    9:00 AM CT Saturday (14:00 UTC)
+// Scheduled function: auto-generates BOTH briefing + report at key market times
 //
-// Cron: runs every 30 min from 11:00-20:30 UTC on weekdays, plus Sat 14:00 UTC
-// The function checks if it's a scheduled slot before running.
+// WEEKDAYS (Mon-Fri):
+//   Pre-Market:  6:00 AM CT (11:00 UTC)
+//   Intraday:   11:30 AM CT (16:30 UTC)
+//   End of Day:  3:30 PM CT (20:30 UTC)
+//
+// SATURDAY:
+//   End of Week Review: 9:00 AM CT (14:00 UTC)
+//
+// SUNDAY:
+//   Week Ahead Preview: 9:00 AM CT (14:00 UTC)
+//
+// Cron: runs every 30 min from 11:00-21:00 UTC, every day of the week.
+// The function checks if current time matches a scheduled slot before running.
 
 const SCHEDULED_SLOTS_UTC = [
-  { hour: 11, minute: 0, days: [1, 2, 3, 4, 5] },  // 6:00 AM CT weekdays
-  { hour: 16, minute: 30, days: [1, 2, 3, 4, 5] },  // 11:30 AM CT weekdays
-  { hour: 20, minute: 30, days: [1, 2, 3, 4, 5] },  // 3:30 PM CT weekdays
-  { hour: 14, minute: 0, days: [6] },                 // 9:00 AM CT Saturday
+  { hour: 11, minute: 0, days: [1, 2, 3, 4, 5] },  // 6:00 AM CT weekdays (Pre-Market)
+  { hour: 16, minute: 30, days: [1, 2, 3, 4, 5] },  // 11:30 AM CT weekdays (Intraday)
+  { hour: 20, minute: 30, days: [1, 2, 3, 4, 5] },  // 3:30 PM CT weekdays (EOD)
+  { hour: 14, minute: 0, days: [6] },                 // 9:00 AM CT Saturday (End of Week)
+  { hour: 14, minute: 0, days: [0] },                 // 9:00 AM CT Sunday (Week Ahead)
 ];
 
 export default async function handler(_req: Request, _context: Context) {
@@ -34,23 +42,39 @@ export default async function handler(_req: Request, _context: Context) {
     return new Response("Not a scheduled slot", { status: 200 });
   }
 
-  console.log(`Scheduled briefing triggered at ${now.toISOString()}`);
+  console.log(`Scheduled generation triggered at ${now.toISOString()} (day=${day}, ${hour}:${minute} UTC)`);
 
-  // Trigger the background function
   const siteUrl = process.env.URL || "https://ikigaitradeos.netlify.app";
+  const results: string[] = [];
+
+  // 1. Trigger briefing (dashboard JSON)
   try {
     const res = await fetch(`${siteUrl}/.netlify/functions/trigger-briefing-background`, {
       method: "POST",
     });
-    console.log(`Trigger response: ${res.status}`);
-    return new Response(`Briefing triggered: ${res.status}`, { status: 200 });
+    results.push(`Briefing: ${res.status}`);
+    console.log(`Briefing trigger response: ${res.status}`);
   } catch (err) {
+    results.push(`Briefing: FAILED`);
     console.error("Failed to trigger briefing:", err);
-    return new Response("Trigger failed", { status: 500 });
   }
+
+  // 2. Trigger report (.docx generation + archive)
+  try {
+    const res = await fetch(`${siteUrl}/.netlify/functions/generate-report-background`, {
+      method: "POST",
+    });
+    results.push(`Report: ${res.status}`);
+    console.log(`Report trigger response: ${res.status}`);
+  } catch (err) {
+    results.push(`Report: FAILED`);
+    console.error("Failed to trigger report:", err);
+  }
+
+  return new Response(`Scheduled: ${results.join(", ")}`, { status: 200 });
 }
 
-// Run every 30 minutes to check if it's a scheduled slot
+// Run every 30 minutes, all 7 days of the week
 export const config: Config = {
-  schedule: "0,30 11-21 * * 1-6",
+  schedule: "0,30 11-21 * * *",
 };

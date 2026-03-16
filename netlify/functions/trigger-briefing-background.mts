@@ -46,11 +46,19 @@ function getEdition(now: Date): { edition: string; editionKey: string; context: 
   const dayOfWeek = ct.getDay(); // 0=Sun, 6=Sat
   const timeDecimal = hour + minute / 60;
 
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
+  if (dayOfWeek === 6) {
     return {
-      edition: "Weekend Report & Week Ahead Preview",
-      editionKey: "weekend",
-      context: "Markets are closed. Focus on: (1) recap of the week that just ended with key winners/losers, (2) what to watch next week including upcoming economic data, earnings, and event risks, (3) positioning recommendations for Monday open, (4) swing trade setups developing over the weekend. Be forward-looking."
+      edition: "End of Week Review",
+      editionKey: "endofweek",
+      context: "SATURDAY END-OF-WEEK REVIEW. Markets are closed. Focus on: (1) full week recap with day-by-day progression of key moves, (2) sector rotation analysis for the week -- which sectors gained/lost relative strength, (3) VIX term structure evolution through the week, (4) grade the week's trade ideas RIGHT/WRONG/PARTIAL with estimated P&L, (5) weekly thesis scorecard -- was our thesis right? What surprised us? (6) swing trade setups to hold into next week."
+    };
+  }
+
+  if (dayOfWeek === 0) {
+    return {
+      edition: "Week Ahead Preview",
+      editionKey: "weekahead",
+      context: "SUNDAY WEEK-AHEAD PREVIEW. Markets open tomorrow. Focus on: (1) the #1 event risk this coming week (FOMC, CPI, earnings, etc.) and how to position, (2) Monday opening playbook with gap scenarios, (3) full week-ahead economic calendar with exact dates/times and expected market impact, (4) sector catalysts coming this week (earnings by sector, data releases), (5) key support/resistance levels for SPX/QQQ/IWM/VIX for the week, (6) the ONE high-conviction trade if you could only make one this week."
     };
   }
 

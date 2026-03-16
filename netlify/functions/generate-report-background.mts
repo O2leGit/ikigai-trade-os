@@ -29,15 +29,50 @@ async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string>
   }
 }
 
-const REPORT_SYSTEM_PROMPT = `You are the chief market strategist at an options-focused hedge fund writing the daily pre-market report for institutional clients. Brutally direct, numerically precise, no filler.
+// ── Context-aware edition detection ──
+function getReportEdition(now: Date): { title: string; snapshot: string; context: string } {
+  const ct = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+  const hour = ct.getHours();
+  const dayOfWeek = ct.getDay();
+  const dayName = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][dayOfWeek];
+
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return {
+      title: `WEEKEND REPORT & WEEK AHEAD PREVIEW`,
+      snapshot: `WEEKEND SNAPSHOT -- ${hour}:00 AM CT`,
+      context: "Markets are closed. Recap the week, preview next week, identify swing setups."
+    };
+  }
+  if (hour < 9) {
+    return {
+      title: `${dayName} MORNING PRE-MARKET REPORT`,
+      snapshot: `${dayName} MORNING SNAPSHOT -- 7:00 AM CT`,
+      context: "Pre-market. Focus on overnight action, gaps, opening trades."
+    };
+  }
+  if (hour < 15) {
+    return {
+      title: `${dayName} INTRADAY MARKET UPDATE`,
+      snapshot: `${dayName} INTRADAY SNAPSHOT -- ${hour}:00 CT`,
+      context: "Markets open. Focus on session development, tactical adjustments, intraday levels."
+    };
+  }
+  return {
+    title: `${dayName} END OF DAY REPORT`,
+    snapshot: `${dayName} CLOSING SNAPSHOT -- 3:00 PM CT`,
+    context: "Markets closed. Full session recap, after-hours movers, tomorrow preview."
+  };
+}
+
+const REPORT_SYSTEM_PROMPT = `You are the chief market strategist at an options-focused hedge fund writing the daily market report for institutional clients. Brutally direct, numerically precise, no filler. The report title and snapshot time will be provided -- use them exactly.
 
 Output ONLY valid JSON matching this schema:
 
 {
-  "title": "string -- e.g. MONDAY MORNING PRE-MARKET REPORT",
+  "title": "string -- USE THE EXACT TITLE PROVIDED IN THE PROMPT",
   "dateSubtitle": "string -- March 15, 2026 | Week of March 10-14",
   "tagline": "string -- bold one-liner e.g. Oil Surging + Tech Under Pressure",
-  "snapshotTime": "string -- MONDAY MORNING SNAPSHOT -- 7:00 AM CT",
+  "snapshotTime": "string -- USE THE EXACT SNAPSHOT TIME PROVIDED IN THE PROMPT",
   "criticalAlert": "string or null",
   "overnightRecap": { "title": "What Happened + Overnight", "subsections": [{ "heading": "string", "content": "string 3-5 sentences with numbers" }] },
   "tradeScorecard": { "title": "Prior-Day Calls Scorecard", "trades": [{ "ticker": "SYM", "call": "string", "grade": "RIGHT|WRONG|PARTIAL|TBD", "entryEst": "string", "actual": "string", "pnlEst": "string", "lesson": "string" }], "summary": "string" },
@@ -101,7 +136,7 @@ export default async function handler(_req: Request, _context: Context) {
         model: "claude-sonnet-4-20250514",
         max_tokens: 8000,
         system: REPORT_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: `Generate today's pre-market report for ${dateStr}.\n\nMarket data:\n${marketDataText}\n\nOutput ONLY valid JSON.` }],
+        messages: [{ role: "user", content: `Generate the market report for ${dateStr}.\n\nREPORT TITLE: ${getReportEdition(now).title}\nSNAPSHOT TIME: ${getReportEdition(now).snapshot}\nCONTEXT: ${getReportEdition(now).context}\n\nMarket data:\n${marketDataText}\n\nUse the EXACT title and snapshot time provided above. Output ONLY valid JSON.` }],
       }),
     });
 

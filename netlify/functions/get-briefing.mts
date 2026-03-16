@@ -7,7 +7,7 @@ export default async function handler(req: Request, _context: Context) {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json",
-    "Cache-Control": "public, max-age=300", // 5 min cache
+    "Cache-Control": "no-cache, no-store, must-revalidate", // Always fresh after Run Brief
   };
 
   if (req.method === "OPTIONS") {

@@ -1811,25 +1811,29 @@ type TradeIdea = {
   direction: string;
   horizon: string;
   thesis: string;
-  entry: string;
-  target: string;
-  stop: string;
-  conviction: string;
-  sizing: string;
+  trade?: string;
+  entry?: string;
+  target?: string;
+  stop?: string;
+  conviction?: string;
+  sizing?: string;
+  rr?: string;
+  riskFlags?: string;
   status?: string;
 };
 
 function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
   const isLong = idea.direction === "LONG";
   const isShort = idea.direction === "SHORT";
-  const isHold = (idea.direction || "").includes("HOLD");
   const dirColor = isLong ? "text-bull border-bull/30 bg-bull/10"
     : isShort ? "text-bear border-bear/30 bg-bear/10"
     : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
 
+  const hasLevels = idea.entry || idea.target || idea.stop;
+
   return (
     <div className="p-4 rounded-lg border border-border bg-card">
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
         <span className="text-xl font-mono font-bold text-primary">{idea.ticker}</span>
         <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${dirColor}`}>
           {idea.direction}
@@ -1837,30 +1841,52 @@ function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
         <span className="text-[10px] font-mono text-muted-foreground border border-border px-1.5 py-0.5 rounded">
           {idea.horizon}
         </span>
-        <ConvictionBadge conviction={idea.conviction} />
+        {idea.conviction && <ConvictionBadge conviction={idea.conviction} />}
         {idea.status && <TradeStatusBadge status={idea.status} />}
+        {idea.rr && <span className="text-[10px] font-mono text-muted-foreground">R/R: {idea.rr}</span>}
       </div>
+
+      {/* Trade structure (the actual trade) */}
+      {idea.trade && (
+        <div className="mb-2.5 p-2.5 rounded bg-primary/5 border border-primary/20">
+          <p className="text-[9px] text-primary uppercase tracking-wider font-semibold mb-0.5">Trade Structure</p>
+          <p className="text-xs text-foreground font-mono leading-relaxed">{idea.trade}</p>
+        </div>
+      )}
+
+      {/* Thesis */}
       <p className="text-xs text-foreground/80 leading-relaxed mb-3">{idea.thesis}</p>
-      {/* Key levels */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        <div className="p-2 rounded bg-secondary/50 border border-border text-center">
-          <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Entry</p>
-          <p className="text-xs font-mono font-semibold text-foreground">{idea.entry}</p>
+
+      {/* Key levels -- only show if we have data */}
+      {hasLevels && (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="p-2 rounded bg-secondary/50 border border-border text-center">
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Entry</p>
+            <p className="text-xs font-mono font-semibold text-foreground">{idea.entry || "—"}</p>
+          </div>
+          <div className="p-2 rounded bg-bull/5 border border-bull/20 text-center">
+            <p className="text-[9px] text-bull uppercase tracking-wider mb-0.5">Target</p>
+            <p className="text-xs font-mono font-semibold text-bull">{idea.target || "—"}</p>
+          </div>
+          <div className="p-2 rounded bg-bear/5 border border-bear/20 text-center">
+            <p className="text-[9px] text-bear uppercase tracking-wider mb-0.5">Stop</p>
+            <p className="text-xs font-mono font-semibold text-bear">{idea.stop || "—"}</p>
+          </div>
         </div>
-        <div className="p-2 rounded bg-bull/5 border border-bull/20 text-center">
-          <p className="text-[9px] text-bull uppercase tracking-wider mb-0.5">Target</p>
-          <p className="text-xs font-mono font-semibold text-bull">{idea.target}</p>
+      )}
+
+      {/* Position sizing -- only show if we have data */}
+      {idea.sizing && (
+        <div className="p-2.5 rounded bg-primary/5 border border-primary/20">
+          <p className="text-[9px] text-primary uppercase tracking-wider font-semibold mb-0.5">Position Sizing</p>
+          <p className="text-xs text-foreground/80 font-mono">{idea.sizing}</p>
         </div>
-        <div className="p-2 rounded bg-bear/5 border border-bear/20 text-center">
-          <p className="text-[9px] text-bear uppercase tracking-wider mb-0.5">Stop</p>
-          <p className="text-xs font-mono font-semibold text-bear">{idea.stop}</p>
-        </div>
-      </div>
-      {/* Position sizing */}
-      <div className="p-2.5 rounded bg-primary/5 border border-primary/20">
-        <p className="text-[9px] text-primary uppercase tracking-wider font-semibold mb-0.5">Position Sizing</p>
-        <p className="text-xs text-foreground/80 font-mono">{idea.sizing}</p>
-      </div>
+      )}
+
+      {/* Risk flags */}
+      {idea.riskFlags && (
+        <p className="text-[10px] text-bear/70 mt-2 italic">Risk: {idea.riskFlags}</p>
+      )}
     </div>
   );
 }

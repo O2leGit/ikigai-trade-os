@@ -24,28 +24,46 @@ function safe<T>(live: any, validator: (v: any) => boolean, fallback: T): T {
 // Home.tsx needs: ticker, direction, horizon, thesis, entry, stop, target, rr, riskFlags
 function normalizeTradeItem(item: any): any {
   if (!item) return null;
-  // Already correct format
-  if (item.ticker && item.direction && item.thesis) return item;
-  // Claude's {strategy, rationale} format - extract what we can
-  if (item.strategy) {
-    const str = item.strategy;
-    // Try to extract ticker from strategy string like "Sell SPY $660/$650 put spread..."
-    const tickerMatch = str.match(/\b([A-Z]{1,5})\b/);
-    const dirMatch = str.match(/\b(sell|buy|long|short)\b/i);
-    return {
-      ticker: tickerMatch?.[1] || "—",
-      direction: dirMatch ? (dirMatch[1].toLowerCase() === "sell" || dirMatch[1].toLowerCase() === "short" ? "SHORT" : "LONG") : "NEUTRAL",
-      horizon: item.horizon || item.timeframe || "Intraday",
-      thesis: item.rationale || item.strategy || "",
-      entry: item.entry || "",
-      stop: item.stop || "",
-      target: item.target || "",
-      rr: item.rr || "",
-      riskFlags: item.riskFlags || item.risk || "",
-      strategy: item.strategy,
-    };
-  }
-  return item;
+
+  // Extract ticker from various fields
+  const rawStr = item.strategy || item.trade || item.description || item.setup || "";
+  const tickerFromStr = rawStr.match(/\b([A-Z]{1,5})\b/)?.[1];
+  const ticker = item.ticker || tickerFromStr || "—";
+
+  // Extract direction
+  const dirStr = (item.direction || rawStr || "").toLowerCase();
+  const direction = dirStr.includes("sell") || dirStr.includes("short") ? "SHORT"
+    : dirStr.includes("buy") || dirStr.includes("long") ? "LONG"
+    : item.direction?.toUpperCase() || "NEUTRAL";
+
+  // Extract entry/target/stop from various field names or from text
+  const extractPrice = (text: string, label: string): string => {
+    const re = new RegExp(`${label}[:\\s]*\\$?([\\d,.]+)`, "i");
+    const m = text.match(re);
+    return m ? `$${m[1]}` : "";
+  };
+  const fullText = `${item.thesis || ""} ${item.rationale || ""} ${rawStr}`;
+
+  const entry = item.entry || item.entryPrice || extractPrice(fullText, "entry") || "";
+  const target = item.target || item.targetPrice || item.profitTarget || extractPrice(fullText, "target") || extractPrice(fullText, "profit") || "";
+  const stop = item.stop || item.stopLoss || item.stopPrice || extractPrice(fullText, "stop") || "";
+  const sizing = item.sizing || item.positionSizing || item.size || item.riskPerTrade || "";
+
+  return {
+    ticker,
+    direction,
+    horizon: item.horizon || item.timeframe || item.dte || "Intraday",
+    thesis: item.thesis || item.rationale || item.reason || rawStr || "",
+    trade: item.trade || item.strategy || item.setup || "",
+    entry,
+    target,
+    stop,
+    sizing,
+    rr: item.rr || item.riskReward || "",
+    conviction: item.conviction || item.confidence || "",
+    riskFlags: item.riskFlags || item.risk || item.risks || "",
+    status: item.status || "",
+  };
 }
 
 function normalizeTradingIdeas(v: any): any {

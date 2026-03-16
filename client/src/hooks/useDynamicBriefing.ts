@@ -263,6 +263,17 @@ function normalizeMacroConditions(v: any): any[] | null {
 }
 
 // ── Earnings Plays ──
+function normalizeEventCalendar(v: any): any[] | null {
+  if (!Array.isArray(v) || v.length === 0) return null;
+  return v.map((ev: any) => ({
+    date: ev.date || "TBD",
+    time: ev.time || "TBD",
+    event: ev.event || ev.name || ev.title || "—",
+    impact: (ev.impact || "LOW").toUpperCase(),
+    notes: ev.notes || ev.context || ev.description || "",
+  }));
+}
+
 function normalizeEarningsPlays(v: any): any[] | null {
   if (!Array.isArray(v) || v.length === 0) return null;
   const first = v[0];
@@ -304,7 +315,7 @@ function mergeBriefing(live: Record<string, unknown>) {
     MARKET_SNAPSHOT: staticData.MARKET_SNAPSHOT,
     NEWS_SIGNALS: staticData.NEWS_SIGNALS,
     SENTIMENT_SUMMARY: staticData.SENTIMENT_SUMMARY,
-    EVENT_CALENDAR: staticData.EVENT_CALENDAR,
+    EVENT_CALENDAR: normalizeEventCalendar(live.eventCalendar) || staticData.EVENT_CALENDAR,
     SEASONAL_CONTEXT: staticData.SEASONAL_CONTEXT,
     PRIOR_SESSION_GRADES: staticData.PRIOR_SESSION_GRADES,
     EARNINGS_PLAYS: normalizeEarningsPlays(live.earningsPlays) || staticData.EARNINGS_PLAYS,

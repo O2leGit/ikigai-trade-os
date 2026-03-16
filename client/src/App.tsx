@@ -10,12 +10,14 @@ import Archive from "./pages/Archive";
 import Admin from "./pages/Admin";
 import Upload from "./pages/Upload";
 import Connections from "./pages/Connections";
+import ReportArchive from "./pages/ReportArchive";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/archive"} component={Archive} />
+      <Route path={"/report-archive"} component={ReportArchive} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/upload"} component={Upload} />
       <Route path={"/connections"} component={Connections} />

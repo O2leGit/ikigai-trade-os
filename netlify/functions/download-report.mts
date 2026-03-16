@@ -265,16 +265,34 @@ export default async function handler(req: Request, _context: Context) {
     });
   }
 
-  // Download mode
+  // Download mode -- supports archive (date+edition params) or today's report
   try {
-    const reportData = await store.get(`daily/${todayKey}`, { type: "json" });
+    const reqDate = url.searchParams.get("date");
+    const reqEdition = url.searchParams.get("edition");
+
+    let reportData: any = null;
+    let reportDate = todayKey;
+
+    if (reqDate && reqEdition) {
+      // Archive download: specific date + edition
+      reportData = await store.get(`archive/${reqDate}/${reqEdition}`, { type: "json" });
+      reportDate = reqDate;
+      if (!reportData) {
+        // Fallback to daily
+        reportData = await store.get(`daily/${reqDate}`, { type: "json" });
+      }
+    } else {
+      // Today's report
+      reportData = await store.get(`daily/${todayKey}`, { type: "json" });
+    }
+
     if (!reportData) {
       return new Response(JSON.stringify({ error: "No report available. Generate one first." }), {
         status: 404, headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
-    // Fetch live snapshot data
+    // Fetch live snapshot data for the market tiles
     const snapSymbols = [
       { yahoo: "%5EGSPC", name: "S&P 500" }, { yahoo: "%5EVIX", name: "VIX" },
       { yahoo: "%5EDJI", name: "Dow" }, { yahoo: "%5EIXIC", name: "Nasdaq" },
@@ -287,14 +305,16 @@ export default async function handler(req: Request, _context: Context) {
 
     const doc = buildReport(reportData as any, marketResults);
     const buffer = await Packer.toBuffer(doc);
-    const dayName = now.toLocaleDateString("en-US", { weekday: "long", timeZone: "America/Chicago" });
+    const reportDateObj = new Date(reportDate + "T12:00:00");
+    const dayName = reportDateObj.toLocaleDateString("en-US", { weekday: "long" });
+    const edKey = reportData._meta?.editionKey || reqEdition || "report";
 
     return new Response(buffer as any, {
       status: 200,
       headers: {
         ...headers,
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${dayName}_${((reportData as any)?._meta?.editionKey || "report").replace(/\s+/g, "_")}_${todayKey}.docx"`,
+        "Content-Disposition": `attachment; filename="${dayName}_${edKey.replace(/\s+/g, "_")}_${reportDate}.docx"`,
       },
     });
   } catch (err) {

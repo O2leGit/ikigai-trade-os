@@ -255,11 +255,49 @@ Review every position line-by-line. Flag critical items. Generate opportunity ti
       return;
     }
 
-    // Store analysis result
-    analysis._meta = { analyzedAt: now.toISOString(), model: "claude-sonnet-4-20250514" };
+    // Store analysis result with metadata
+    const dateKey = now.toISOString().split("T")[0]; // e.g. "2026-03-16"
+    const timeKey = now.toISOString().replace(/[:.]/g, "-"); // e.g. "2026-03-16T14-30-00-000Z"
+    analysis._meta = {
+      analyzedAt: now.toISOString(),
+      model: "claude-sonnet-4-20250514",
+      accountsAnalyzed: Object.keys(accountGroups),
+      positionCount: positions.length,
+    };
     await store.setJSON("latest", analysis);
+
+    // Store daily history snapshot for backtesting
+    const historyStore = getStore("analysis-history");
+    const snapshot = {
+      analysis,
+      positions, // raw positions at time of analysis
+      portfolioSummary,
+      totalNlv,
+      totalPnl,
+      analyzedAt: now.toISOString(),
+    };
+    await historyStore.setJSON(`${dateKey}/${timeKey}`, snapshot);
+
+    // Update history index
+    let historyIndex: any[] = [];
+    try {
+      const existing = await historyStore.get("_index", { type: "json" }) as any[];
+      if (Array.isArray(existing)) historyIndex = existing;
+    } catch { /* first time */ }
+    historyIndex.unshift({
+      date: dateKey,
+      time: timeKey,
+      analyzedAt: now.toISOString(),
+      accounts: Object.keys(accountGroups),
+      positionCount: positions.length,
+      totalNlv,
+    });
+    // Keep last 90 entries
+    if (historyIndex.length > 90) historyIndex = historyIndex.slice(0, 90);
+    await historyStore.setJSON("_index", historyIndex);
+
     await store.setJSON("analysis-status", { status: "ready", completedAt: now.toISOString() });
-    console.log("Position analysis complete and stored.");
+    console.log(`Analysis complete. Stored snapshot ${dateKey}/${timeKey} (${positions.length} positions, ${Object.keys(accountGroups).length} accounts).`);
 
   } catch (err) {
     console.error("Analysis error:", err);

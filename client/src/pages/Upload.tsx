@@ -294,8 +294,20 @@ interface AnalysisResult {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
+// Stored account from Blobs (previously uploaded)
+interface StoredAccount {
+  accountId: string;
+  fileName: string;
+  statementDate: string;
+  nlv: number;
+  openPnl: number;
+  positions: ParsedPosition[];
+  uploadedAt: string;
+}
+
 export default function UploadPage() {
-  const [files, setFiles] = useState<ParsedFile[]>([]);
+  const [files, setFiles] = useState<ParsedFile[]>([]); // newly uploaded this session
+  const [storedAccounts, setStoredAccounts] = useState<StoredAccount[]>([]); // previously stored in Blobs
   const [isDragging, setIsDragging] = useState(false);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
@@ -307,11 +319,18 @@ export default function UploadPage() {
   const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(null);
   const [loadingPrevious, setLoadingPrevious] = useState(true);
 
-  const totalPositions = files.reduce((s, f) => s + f.positions.length, 0);
-  const totalNlv = files.reduce((s, f) => s + f.nlv, 0);
-  const totalPnl = files.reduce((s, f) => s + f.openPnl, 0);
-  const equityCount = files.reduce((s, f) => s + f.positions.filter(p => p.type === "equity").length, 0);
-  const optionsCount = files.reduce((s, f) => s + f.positions.filter(p => p.type === "option").length, 0);
+  // Merge: new files override stored accounts with same accountId
+  const newAccountIds = new Set(files.map(f => f.accountId));
+  const mergedAccounts: Array<ParsedFile | StoredAccount> = [
+    ...files,
+    ...storedAccounts.filter(sa => !newAccountIds.has(sa.accountId)),
+  ];
+
+  const totalPositions = mergedAccounts.reduce((s, f) => s + f.positions.length, 0);
+  const totalNlv = mergedAccounts.reduce((s, f) => s + f.nlv, 0);
+  const totalPnl = mergedAccounts.reduce((s, f) => s + f.openPnl, 0);
+  const equityCount = mergedAccounts.reduce((s, f) => s + f.positions.filter(p => p.type === "equity").length, 0);
+  const optionsCount = mergedAccounts.reduce((s, f) => s + f.positions.filter(p => p.type === "option").length, 0);
 
   // Normalize raw Claude JSON into safe AnalysisResult
   const normalizeAnalysis = (raw: any): AnalysisResult => ({
@@ -325,18 +344,33 @@ export default function UploadPage() {
     ideasLeaps: Array.isArray(raw.ideasLeaps) ? raw.ideasLeaps : [],
   });
 
-  // ── Auto-load last analysis on mount ──────────────────────────────────────
+  // ── Auto-load stored accounts + last analysis on mount ────────────────────
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/get-analysis?_t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok || !res.headers.get("content-type")?.includes("json")) return;
-        const data = await res.json();
-        if (data && (data.executiveSummary || data.accounts)) {
-          setAnalysis(normalizeAnalysis(data));
-          setAnalysisTimestamp(data._meta?.analyzedAt || data._meta?.generatedAt || null);
+        // Load stored accounts and last analysis in parallel
+        const [acctRes, analysisRes] = await Promise.all([
+          fetch(`/api/get-accounts?_t=${Date.now()}`, { cache: "no-store" }),
+          fetch(`/api/get-analysis?_t=${Date.now()}`, { cache: "no-store" }),
+        ]);
+
+        // Load stored accounts
+        if (acctRes.ok && acctRes.headers.get("content-type")?.includes("json")) {
+          const acctData = await acctRes.json();
+          if (Array.isArray(acctData.accounts) && acctData.accounts.length > 0) {
+            setStoredAccounts(acctData.accounts);
+          }
         }
-      } catch { /* no previous analysis, that's fine */ }
+
+        // Load last analysis
+        if (analysisRes.ok && analysisRes.headers.get("content-type")?.includes("json")) {
+          const data = await analysisRes.json();
+          if (data && (data.executiveSummary || data.accounts)) {
+            setAnalysis(normalizeAnalysis(data));
+            setAnalysisTimestamp(data._meta?.analyzedAt || data._meta?.generatedAt || null);
+          }
+        }
+      } catch { /* first time, nothing stored */ }
       finally { setLoadingPrevious(false); }
     })();
   }, []);
@@ -356,24 +390,66 @@ export default function UploadPage() {
           if (parsed.positions.length === 0 && parsed.nlv === 0) { errors.push(`${file.name}: No positions or NLV found`); return; }
           newFiles.push(parsed);
         } catch (err: any) { errors.push(`${file.name}: ${err.message}`); }
-        setFiles(prev => { const existing = new Set(prev.map(f => f.fileName)); return [...prev, ...newFiles.filter(f => !existing.has(f.fileName))]; });
+        // Replace existing files with same accountId, add new ones
+        setFiles(prev => {
+          const updated = [...prev];
+          for (const nf of newFiles) {
+            const idx = updated.findIndex(f => f.accountId === nf.accountId);
+            if (idx >= 0) updated[idx] = nf; // replace
+            else updated.push(nf); // add
+          }
+          return updated;
+        });
         if (errors.length) setParseErrors(prev => [...prev, ...errors]);
       };
       reader.readAsText(file);
     });
   }, [files.length]);
 
-  const removeFile = (fileName: string) => { setFiles(prev => prev.filter(f => f.fileName !== fileName)); setAnalysis(null); };
-  const clearAll = () => { setFiles([]); setAnalysis(null); setAnalyzeError(null); setParseErrors([]); setAnalysisTimestamp(null); };
+  const removeFile = (fileName: string) => { setFiles(prev => prev.filter(f => f.fileName !== fileName)); };
+  const clearAll = () => { setFiles([]); setStoredAccounts([]); setAnalysis(null); setAnalyzeError(null); setParseErrors([]); setAnalysisTimestamp(null); };
 
   // ── Analyze with Claude ─────────────────────────────────────────────────────
   const runAnalysis = async () => {
-    if (files.length === 0) return;
+    if (mergedAccounts.length === 0 && files.length === 0) return;
     setAnalyzing(true); setAnalyzeError(null);
-    setAnalyzeProgress("Sending positions to AI analyst...");
+    setAnalyzeProgress("Saving accounts & sending to AI analyst...");
     try {
-      const allPositions = files.flatMap(f => f.positions.map(p => ({ account: f.accountId, ...p })));
-      const portfolioSummary = files.map(f => `Account ${f.accountId}: NLV ${fmt(f.nlv)}, Open P&L ${fmt(f.openPnl)}, ${f.positions.length} positions (${f.statementDate})`).join("\n");
+      // Save newly uploaded files to Blobs for persistence
+      if (files.length > 0) {
+        const savePayload = files.map(f => ({
+          accountId: f.accountId,
+          fileName: f.fileName,
+          statementDate: f.statementDate,
+          nlv: f.nlv,
+          openPnl: f.openPnl,
+          positions: f.positions,
+        }));
+        await fetch("/api/save-accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accounts: savePayload }),
+        });
+        // Update stored accounts with the newly saved ones
+        setStoredAccounts(prev => {
+          const updated = [...prev];
+          for (const sf of savePayload) {
+            const idx = updated.findIndex(sa => sa.accountId === sf.accountId);
+            const stored: StoredAccount = { ...sf, uploadedAt: new Date().toISOString() };
+            if (idx >= 0) updated[idx] = stored;
+            else updated.push(stored);
+          }
+          return updated;
+        });
+      }
+
+      // Use ALL accounts (new uploads + stored) for analysis
+      const allPositions = mergedAccounts.flatMap(f => f.positions.map(p => ({ account: f.accountId, ...p })));
+      const portfolioSummary = mergedAccounts.map(f => {
+        const isNew = newAccountIds.has(f.accountId);
+        const uploaded = "uploadedAt" in f ? ` [stored: ${new Date(f.uploadedAt).toLocaleDateString()}]` : " [new upload]";
+        return `Account ${f.accountId}: NLV ${fmt(f.nlv)}, Open P&L ${fmt(f.openPnl)}, ${f.positions.length} positions (${f.statementDate})${isNew ? " [UPDATED]" : uploaded}`;
+      }).join("\n");
       const triggerTime = new Date().toISOString();
       // MUST use direct path for background functions -- /api/* redirect strips -background semantics
       const triggerRes = await fetch("/.netlify/functions/analyze-positions-background", {
@@ -449,20 +525,43 @@ export default function UploadPage() {
           </div>
         )}
 
-        {/* ═══ DROP ZONE -- always visible when no files uploaded ═════════════ */}
-        {files.length === 0 && !loadingPrevious && (
-          <div className="rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 py-6 flex flex-col items-center justify-center gap-2"
+        {/* ═══ STORED ACCOUNTS (from previous uploads) ══════════════════════ */}
+        {storedAccounts.length > 0 && files.length === 0 && !loadingPrevious && (
+          <div className="rounded-xl border px-4 py-3" style={{ background: "#0c1018", borderColor: "#1a2332" }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Stored Accounts</span>
+              <span className="text-[10px] text-slate-600">{storedAccounts.length} accounts on file</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {storedAccounts.map(sa => (
+                <div key={sa.accountId} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px]" style={{ background: "#0f1520", borderColor: "#1e2a3a" }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/60" />
+                  <span className="text-slate-300 font-mono font-semibold">{sa.accountId}</span>
+                  <span className="text-slate-600">{sa.positions.length}p</span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-500">{new Date(sa.uploadedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-600 mt-2">Upload updated files to replace specific accounts. Others will remain as-is.</p>
+          </div>
+        )}
+
+        {/* ═══ DROP ZONE -- always visible when no new files this session ═══ */}
+        {!loadingPrevious && (
+          <div className="rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 py-5 flex flex-col items-center justify-center gap-2"
             style={{ borderColor: isDragging ? "#d4a843" : "#1a2332", background: isDragging ? "#d4a8430a" : "#0c1018" }}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={(e) => { e.preventDefault(); setIsDragging(false); processFiles(e.dataTransfer.files); }}
             onClick={() => fileInputRef.current?.click()}>
-            <UploadIcon size={24} className="text-slate-600" />
+            <UploadIcon size={20} className="text-slate-600" />
             <p className="text-sm text-slate-400">Drop CSV files or <span className="text-amber-400/80 underline">browse</span></p>
-            <p className="text-[10px] text-slate-600">TOS/Schwab account statements (up to 10)</p>
-            {analysis && (
-              <p className="text-[10px] text-emerald-500/70 mt-1">Upload new files to run a fresh analysis (previous report shown below)</p>
-            )}
+            <p className="text-[10px] text-slate-600">
+              {storedAccounts.length > 0
+                ? `Upload updated account files (${storedAccounts.length} stored, upload any to update)`
+                : "TOS/Schwab account statements (up to 10)"}
+            </p>
           </div>
         )}
 
@@ -475,10 +574,10 @@ export default function UploadPage() {
         )}
 
         {/* ═══ PORTFOLIO SUMMARY BAR ═════════════════════════════════════════ */}
-        {files.length > 0 && (
+        {(files.length > 0 || (storedAccounts.length > 0 && !loadingPrevious)) && (
           <div className="rounded-xl border px-5 py-3.5 flex items-center gap-6 flex-wrap" style={{ background: "#0c1018", borderColor: "#1a2332" }}>
             {[
-              { label: "Accounts", value: String(files.length), color: "#d4a843" },
+              { label: "Accounts", value: String(mergedAccounts.length), color: "#d4a843" },
               { label: "Total NLV", value: fmt(totalNlv), color: "#e2e8f0" },
               { label: "Open P&L", value: `${totalPnl >= 0 ? "+" : ""}${fmt(totalPnl)}`, color: pnlColor(totalPnl) },
               { label: "Equities", value: String(equityCount), color: "#14b8a6" },
@@ -491,13 +590,21 @@ export default function UploadPage() {
             ))}
             <div className="flex-1" />
 
-            {/* File chips (compact) */}
+            {/* Account chips: new uploads (amber) + stored (green) */}
             <div className="flex flex-wrap gap-1.5 mr-3">
               {files.map(f => (
-                <span key={f.fileName} className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border" style={{ background: "#0f1520", borderColor: "#1e2a3a" }}>
-                  <span className="text-slate-400 font-mono">{f.accountId}</span>
+                <span key={`new-${f.accountId}`} className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border" style={{ background: "#d4a84310", borderColor: "#d4a84340" }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Updated this session" />
+                  <span className="text-amber-300 font-mono">{f.accountId}</span>
                   <span className="text-slate-600">{f.positions.length}p</span>
                   <button onClick={() => removeFile(f.fileName)} className="text-slate-700 hover:text-red-400"><X size={10} /></button>
+                </span>
+              ))}
+              {storedAccounts.filter(sa => !newAccountIds.has(sa.accountId)).map(sa => (
+                <span key={`stored-${sa.accountId}`} className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border" style={{ background: "#0f1520", borderColor: "#1e2a3a" }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" title={`Last updated: ${new Date(sa.uploadedAt).toLocaleString()}`} />
+                  <span className="text-slate-400 font-mono">{sa.accountId}</span>
+                  <span className="text-slate-600">{sa.positions.length}p</span>
                 </span>
               ))}
             </div>

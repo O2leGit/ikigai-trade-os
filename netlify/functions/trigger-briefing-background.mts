@@ -89,7 +89,7 @@ export default async function handler(_req: Request, _context: Context) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 6000,
+        max_tokens: 8000,
         system: SYSTEM_PROMPT,
         messages: [{
           role: "user",
@@ -136,6 +136,10 @@ export default async function handler(_req: Request, _context: Context) {
 
   } catch (err) {
     console.error("Briefing generation error:", err);
-    await store.setJSON("briefing-status", { status: "error", error: String(err), at: now.toISOString() });
+    try {
+      await store.setJSON("briefing-status", { status: "error", error: String(err), at: now.toISOString() });
+    } catch (storeErr) {
+      console.error("Failed to write error status:", storeErr);
+    }
   }
 }

@@ -516,7 +516,7 @@ export default function Home() {
                       <span className="text-bull">S: {lvl.support}</span>
                       <span className="text-bear">R: {lvl.resistance}</span>
                     </div>
-                    <p className={`text-[10px] font-mono mt-1 ${lvl.trend === "Bullish" ? "text-bull" : "text-bear"}`}>{lvl.trend}</p>
+                    <p className={`text-[10px] font-mono mt-1 ${lvl.direction === "up" ? "text-bull" : "text-bear"}`}>{lvl.trend}</p>
                   </div>
                 ))}
               </div>

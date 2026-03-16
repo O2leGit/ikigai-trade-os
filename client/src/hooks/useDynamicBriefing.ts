@@ -186,7 +186,7 @@ function normalizeKeyLevels(v: any): any[] | null {
       name: lvl.name || lvl.symbol || "—",
       price: lvl.price || lvl.current || "—",
       change: lvl.change || "—",
-      direction: lvl.direction || (String(lvl.change).startsWith("-") ? "down" : "up"),
+      direction: parseFloat(String(lvl.change).replace(/[^0-9.\-]/g, "")) < 0 ? "down" : "up",
       support: lvl.support || "—",
       resistance: lvl.resistance || "—",
       trend: lvl.trend || "—",
@@ -202,7 +202,7 @@ function normalizeFearGauge(v: any): any | null {
     return {
       vix: v.vix,
       vixChange: v.vixChange || v.change || "—",
-      vixTrend: v.vixTrend || v.trend || "—",
+      vixTrend: parseFloat(String(v.vixChange || v.change || "0").replace(/[^0-9.\-]/g, "")) > 0 ? "up" : "down",
       putCallRatio: v.putCallRatio || v.pcr || "—",
       putCallSignal: v.putCallSignal || v.pcrSignal || "—",
       ivRank: v.ivRank || v.ivr || "—",

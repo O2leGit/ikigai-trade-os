@@ -759,9 +759,27 @@ export default function Home() {
 
             {/* ── NEWS & SENTIMENT ── */}
             <CollapsibleSection id="news-sentiment" title="News & Sentiment Signals" icon={<Activity className="w-4 h-4" />} defaultOpen={false} collapsed={collapsedSections} onToggle={toggleCollapse}>
+              {/* Last Updated + Sources */}
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                {liveData.newsFetchedAt && (
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    Updated: {new Date(liveData.newsFetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {" "}({Math.floor((Date.now() - new Date(liveData.newsFetchedAt).getTime()) / 60000)}m ago)
+                  </span>
+                )}
+                {liveData.newsSources.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    {liveData.newsSources.map((src) => (
+                      <span key={src} className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-primary/30 bg-primary/10 text-primary">{src}</span>
+                    ))}
+                  </div>
+                )}
+                <span className="text-[10px] text-muted-foreground font-mono">{displayNews.length} articles</span>
+              </div>
+
               <div className="space-y-3">
                 {displayNews.map((signal, i) => (
-                  <div key={i} className="p-4 rounded-lg border border-border bg-card">
+                  <div key={i} className="p-4 rounded-lg border border-border bg-card hover:border-primary/30 transition-colors">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <ImpactBadge impact={signal.impact} />
                       <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
@@ -771,9 +789,53 @@ export default function Home() {
                         {(signal.sentiment || "").toUpperCase()}
                       </span>
                       <span className="text-[10px] text-muted-foreground font-mono">{signal.source}</span>
+                      {signal.provider && (
+                        <span className={`text-[8px] font-mono px-1 py-0.5 rounded ${signal.provider === "marketaux" ? "bg-purple-900/30 text-purple-400 border border-purple-600/30" : "bg-cyan-900/30 text-cyan-400 border border-cyan-600/30"}`}>
+                          {signal.provider === "marketaux" ? "MKT" : "FH"}
+                        </span>
+                      )}
+                      {signal.datetime && (
+                        <span className="text-[9px] text-muted-foreground/60 font-mono ml-auto">
+                          {new Date(signal.datetime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm font-semibold text-foreground mb-1">{signal.headline}</p>
+
+                    {/* Headline -- clickable link */}
+                    {signal.url ? (
+                      <a href={signal.url} target="_blank" rel="noopener noreferrer" className="group flex items-start gap-1.5 mb-1">
+                        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{signal.headline}</p>
+                        <ExternalLink className="w-3 h-3 text-muted-foreground group-hover:text-primary flex-shrink-0 mt-0.5" />
+                      </a>
+                    ) : (
+                      <p className="text-sm font-semibold text-foreground mb-1">{signal.headline}</p>
+                    )}
+
                     <p className="text-xs text-foreground/70 leading-relaxed">{signal.detail}</p>
+
+                    {/* Ticker tags */}
+                    {signal.tickers && signal.tickers.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {signal.tickers.map((ticker) => (
+                          <span key={ticker} className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground/70 border border-foreground/10">
+                            ${ticker}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Trade play suggestion */}
+                    {signal.tradePlay && (
+                      <div className="mt-2.5 p-2.5 rounded border border-amber-600/30 bg-amber-900/10">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Zap className="w-3 h-3 text-amber-400" />
+                          <span className="text-[9px] font-mono font-bold text-amber-400 uppercase tracking-wider">Trade Play</span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-900/20 text-amber-300 border border-amber-600/20">{signal.tradePlay.strategy}</span>
+                          <span className="text-[9px] font-mono text-muted-foreground ml-auto">{signal.tradePlay.timeframe}</span>
+                        </div>
+                        <p className="text-[11px] text-amber-200/90 font-mono leading-relaxed">{signal.tradePlay.play}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

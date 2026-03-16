@@ -1246,10 +1246,10 @@ function AIIntelligenceSummary({ aiSummary, meta, onRefresh }: {
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const genTime = new Date(aiSummary.generatedAt);
+  const genTime = new Date(meta.generatedAt || aiSummary.generatedAt);
   const now = new Date();
   const minsAgo = Math.floor((now.getTime() - genTime.getTime()) / 60000);
-  const timeAgo = minsAgo < 60 ? `${minsAgo}m ago` : `${Math.floor(minsAgo / 60)}h ago`;
+  const timeAgo = minsAgo < 60 ? `${minsAgo}m ago` : minsAgo < 1440 ? `${Math.floor(minsAgo / 60)}h ago` : `${Math.floor(minsAgo / 1440)}d ago`;
 
   const handleRefresh = async () => {
     setRefreshing(true);

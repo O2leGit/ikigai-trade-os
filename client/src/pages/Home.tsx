@@ -414,15 +414,17 @@ export default function Home() {
                     // Wait for background fn to set status to "generating"
                     await new Promise(r => setTimeout(r, 2000));
                     let ready = false;
-                    for (let i = 0; i < 40; i++) {
+                    for (let i = 0; i < 60; i++) {
                       await new Promise(r => setTimeout(r, 3000));
-                      btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating... ${(i + 1) * 3 + 2}s`;
+                      const elapsed = (i + 1) * 3 + 2;
+                      const msg = elapsed < 30 ? "Fetching market data..." : elapsed < 60 ? "Claude analyzing markets..." : elapsed < 120 ? "Generating full briefing..." : "Almost done...";
+                      btn.innerHTML = `<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${msg} ${elapsed}s`;
                       const statusRes = await fetch("/api/briefing-status", { cache: "no-store" });
                       const status = await statusRes.json();
                       if (status.status === "ready" && status.generatedAt > triggerTime) { ready = true; break; }
                       if (status.status === "error" && (!status.at || status.at > triggerTime)) throw new Error(status.error || "Generation failed");
                     }
-                    if (!ready) throw new Error("Briefing generation timed out after 120s");
+                    if (!ready) throw new Error("Briefing generation timed out after 180s");
                     await refreshBriefing();
                   } catch (err) {
                     console.error("Briefing trigger failed:", err);

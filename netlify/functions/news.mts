@@ -1,7 +1,9 @@
 import type { Context } from "@netlify/functions";
+import { getStore } from "@netlify/blobs";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NEWS AGGREGATOR -- Finnhub + MarketAux with trade play suggestions
+// Server-side Blob cache: MarketAux cached 30 min, Finnhub cached 5 min
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const BEARISH_KEYWORDS = [
@@ -51,7 +53,6 @@ const TRADE_PLAYS: Record<string, { play: string; strategy: string; timeframe: s
 };
 
 function analyzeSentiment(headline: string, summary: string, marketauxScore?: number): "bullish" | "bearish" | "neutral" {
-  // If MarketAux provides a numeric sentiment score, use it
   if (marketauxScore !== undefined) {
     if (marketauxScore > 0.15) return "bullish";
     if (marketauxScore < -0.15) return "bearish";
@@ -76,11 +77,8 @@ function analyzeSentiment(headline: string, summary: string, marketauxScore?: nu
 
 function analyzeImpact(headline: string): "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" {
   const lower = headline.toLowerCase();
-
-  // CRITICAL: multiple high-impact keywords or specific phrases
   const highHits = HIGH_IMPACT_KEYWORDS.filter(kw => lower.includes(kw));
   if (highHits.length >= 2) return "CRITICAL";
-
   for (const kw of HIGH_IMPACT_KEYWORDS) {
     if (lower.includes(kw)) return "HIGH";
   }
@@ -92,8 +90,6 @@ function analyzeImpact(headline: string): "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
 
 function suggestTradePlay(headline: string, summary: string): { play: string; strategy: string; timeframe: string } | null {
   const text = `${headline} ${summary}`.toLowerCase();
-
-  // Check each trade play keyword
   for (const [keyword, tradePlay] of Object.entries(TRADE_PLAYS)) {
     if (text.includes(keyword)) {
       return tradePlay;
@@ -105,14 +101,12 @@ function suggestTradePlay(headline: string, summary: string): { play: string; st
 function extractTickers(headline: string, summary: string, entities?: any[]): string[] {
   const tickers: string[] = [];
 
-  // From MarketAux entities
   if (entities && Array.isArray(entities)) {
     for (const e of entities) {
       if (e.symbol) tickers.push(e.symbol);
     }
   }
 
-  // Extract from text -- common tickers in parentheses or standalone
   const text = `${headline} ${summary}`;
   const tickerRegex = /\b([A-Z]{1,5})\b/g;
   const knownTickers = new Set([
@@ -129,10 +123,10 @@ function extractTickers(headline: string, summary: string, entities?: any[]): st
     }
   }
 
-  return tickers.slice(0, 5); // Max 5 tickers per article
+  return tickers.slice(0, 5);
 }
 
-// ── Finnhub types ──
+// ── Types ──
 interface FinnhubNewsItem {
   headline: string;
   source: string;
@@ -141,7 +135,6 @@ interface FinnhubNewsItem {
   datetime: number;
 }
 
-// ── MarketAux types ──
 interface MarketAuxEntity {
   symbol: string;
   name: string;
@@ -158,7 +151,6 @@ interface MarketAuxItem {
   relevance_score?: number;
 }
 
-// ── Unified output ──
 interface NewsOutput {
   headline: string;
   source: string;
@@ -173,96 +165,157 @@ interface NewsOutput {
   provider: "finnhub" | "marketaux";
 }
 
+// Cache durations in ms
+const FINNHUB_CACHE_MS = 5 * 60 * 1000;       // 5 minutes
+const MARKETAUX_CACHE_MS = 30 * 60 * 1000;     // 30 minutes (100 req/day budget)
+
 export default async function handler(req: Request, _context: Context) {
   const url = new URL(req.url);
-  const finnhubKey = url.searchParams.get("key");
+  const finnhubKey = url.searchParams.get("key") || process.env.FINNHUB_KEY;
   const marketauxKey = process.env.MARKETAUX_KEY;
 
   const results: NewsOutput[] = [];
   const seenHeadlines = new Set<string>();
   const errors: string[] = [];
+  const sources: string[] = [];
 
-  // ── Fetch Finnhub ──
-  if (finnhubKey) {
-    try {
-      const endpoint = `https://finnhub.io/api/v1/news?category=general&minId=0&token=${finnhubKey}`;
-      const res = await fetch(endpoint);
+  // ── Blob cache store ──
+  let store: any;
+  try {
+    store = getStore("news-cache");
+  } catch {
+    store = null;
+  }
 
-      if (res.ok) {
-        const items: FinnhubNewsItem[] = await res.json();
-        for (const item of items.slice(0, 15)) {
-          const key = item.headline.toLowerCase().slice(0, 60);
-          if (seenHeadlines.has(key)) continue;
-          seenHeadlines.add(key);
-
-          results.push({
-            headline: item.headline,
-            source: item.source,
-            sentiment: analyzeSentiment(item.headline, item.summary),
-            impact: analyzeImpact(item.headline),
-            detail: item.summary?.length > 300 ? item.summary.slice(0, 300) + "..." : (item.summary || ""),
-            url: item.url,
-            datetime: item.datetime,
-            tickers: extractTickers(item.headline, item.summary),
-            tradePlay: suggestTradePlay(item.headline, item.summary),
-            provider: "finnhub",
-          });
+  // ── Helper: get cached or fetch ──
+  async function getCachedOrFetch<T>(
+    cacheKey: string,
+    maxAgeMs: number,
+    fetcher: () => Promise<T | null>,
+  ): Promise<{ data: T | null; fromCache: boolean }> {
+    if (store) {
+      try {
+        const raw = await store.get(cacheKey);
+        if (raw) {
+          const cached = JSON.parse(raw);
+          const age = Date.now() - (cached._cachedAt || 0);
+          if (age < maxAgeMs) {
+            return { data: cached.data as T, fromCache: true };
+          }
         }
-      } else {
-        errors.push(`Finnhub: ${res.status}`);
+      } catch { /* cache miss */ }
+    }
+
+    const data = await fetcher();
+
+    if (data && store) {
+      try {
+        await store.set(cacheKey, JSON.stringify({ data, _cachedAt: Date.now() }));
+      } catch { /* cache write fail -- non-fatal */ }
+    }
+
+    return { data, fromCache: false };
+  }
+
+  // ── Fetch Finnhub (cached 5 min) ──
+  if (finnhubKey) {
+    const { data: finnhubItems, fromCache } = await getCachedOrFetch<FinnhubNewsItem[]>(
+      "finnhub-news",
+      FINNHUB_CACHE_MS,
+      async () => {
+        try {
+          const endpoint = `https://finnhub.io/api/v1/news?category=general&minId=0&token=${finnhubKey}`;
+          const res = await fetch(endpoint);
+          if (!res.ok) {
+            errors.push(`Finnhub: ${res.status}`);
+            return null;
+          }
+          return await res.json();
+        } catch (err) {
+          errors.push(`Finnhub: ${err instanceof Error ? err.message : "failed"}`);
+          return null;
+        }
+      },
+    );
+
+    if (finnhubItems) {
+      sources.push(fromCache ? "Finnhub (cached)" : "Finnhub");
+      for (const item of finnhubItems.slice(0, 15)) {
+        const key = item.headline.toLowerCase().slice(0, 60);
+        if (seenHeadlines.has(key)) continue;
+        seenHeadlines.add(key);
+
+        results.push({
+          headline: item.headline,
+          source: item.source,
+          sentiment: analyzeSentiment(item.headline, item.summary),
+          impact: analyzeImpact(item.headline),
+          detail: item.summary?.length > 300 ? item.summary.slice(0, 300) + "..." : (item.summary || ""),
+          url: item.url,
+          datetime: item.datetime,
+          tickers: extractTickers(item.headline, item.summary),
+          tradePlay: suggestTradePlay(item.headline, item.summary),
+          provider: "finnhub",
+        });
       }
-    } catch (err) {
-      errors.push(`Finnhub: ${err instanceof Error ? err.message : "failed"}`);
     }
   }
 
-  // ── Fetch MarketAux ──
+  // ── Fetch MarketAux (cached 30 min to stay under 100 req/day) ──
   if (marketauxKey) {
-    try {
-      const symbols = "SPY,QQQ,AAPL,NVDA,TSLA,MSFT,AMZN,META,AMD,BA";
-      const endpoint = `https://api.marketaux.com/v1/news/all?symbols=${symbols}&filter_entities=true&language=en&api_token=${marketauxKey}`;
-      const res = await fetch(endpoint);
-
-      if (res.ok) {
-        const json = await res.json();
-        const items: MarketAuxItem[] = json.data || [];
-
-        for (const item of items.slice(0, 10)) {
-          const key = item.title.toLowerCase().slice(0, 60);
-          if (seenHeadlines.has(key)) continue;
-          seenHeadlines.add(key);
-
-          // Average entity sentiment scores
-          const avgSentiment = item.entities?.length > 0
-            ? item.entities.reduce((sum, e) => sum + (e.sentiment_score || 0), 0) / item.entities.length
-            : undefined;
-
-          results.push({
-            headline: item.title,
-            source: item.source || "MarketAux",
-            sentiment: analyzeSentiment(item.title, item.description || "", avgSentiment),
-            sentimentScore: avgSentiment,
-            impact: analyzeImpact(item.title),
-            detail: (item.description || "").length > 300 ? (item.description || "").slice(0, 300) + "..." : (item.description || ""),
-            url: item.url,
-            datetime: Math.floor(new Date(item.published_at).getTime() / 1000),
-            tickers: extractTickers(item.title, item.description || "", item.entities),
-            tradePlay: suggestTradePlay(item.title, item.description || ""),
-            provider: "marketaux",
-          });
+    const { data: marketauxItems, fromCache } = await getCachedOrFetch<MarketAuxItem[]>(
+      "marketaux-news",
+      MARKETAUX_CACHE_MS,
+      async () => {
+        try {
+          const symbols = "SPY,QQQ,AAPL,NVDA,TSLA,MSFT,AMZN,META,AMD,BA";
+          const endpoint = `https://api.marketaux.com/v1/news/all?symbols=${symbols}&filter_entities=true&language=en&api_token=${marketauxKey}`;
+          const res = await fetch(endpoint);
+          if (!res.ok) {
+            errors.push(`MarketAux: ${res.status}`);
+            return null;
+          }
+          const json = await res.json();
+          return json.data || [];
+        } catch (err) {
+          errors.push(`MarketAux: ${err instanceof Error ? err.message : "failed"}`);
+          return null;
         }
-      } else {
-        errors.push(`MarketAux: ${res.status}`);
+      },
+    );
+
+    if (marketauxItems) {
+      sources.push(fromCache ? "MarketAux (cached)" : "MarketAux");
+      for (const item of marketauxItems.slice(0, 10)) {
+        const key = item.title.toLowerCase().slice(0, 60);
+        if (seenHeadlines.has(key)) continue;
+        seenHeadlines.add(key);
+
+        const avgSentiment = item.entities?.length > 0
+          ? item.entities.reduce((sum, e) => sum + (e.sentiment_score || 0), 0) / item.entities.length
+          : undefined;
+
+        results.push({
+          headline: item.title,
+          source: item.source || "MarketAux",
+          sentiment: analyzeSentiment(item.title, item.description || "", avgSentiment),
+          sentimentScore: avgSentiment,
+          impact: analyzeImpact(item.title),
+          detail: (item.description || "").length > 300 ? (item.description || "").slice(0, 300) + "..." : (item.description || ""),
+          url: item.url,
+          datetime: Math.floor(new Date(item.published_at).getTime() / 1000),
+          tickers: extractTickers(item.title, item.description || "", item.entities),
+          tradePlay: suggestTradePlay(item.title, item.description || ""),
+          provider: "marketaux",
+        });
       }
-    } catch (err) {
-      errors.push(`MarketAux: ${err instanceof Error ? err.message : "failed"}`);
     }
   }
 
   // No sources available
   if (!finnhubKey && !marketauxKey) {
     return new Response(
-      JSON.stringify({ error: "No news API keys configured. Add Finnhub key on Connections page or set MARKETAUX_KEY env var." }),
+      JSON.stringify({ error: "No news API keys configured. Set FINNHUB_KEY or MARKETAUX_KEY env vars." }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
@@ -279,10 +332,7 @@ export default async function handler(req: Request, _context: Context) {
   const response = {
     items: results.slice(0, 20),
     fetchedAt: new Date().toISOString(),
-    sources: [
-      ...(finnhubKey ? ["Finnhub"] : []),
-      ...(marketauxKey ? ["MarketAux"] : []),
-    ],
+    sources,
     errors: errors.length > 0 ? errors : undefined,
   };
 
@@ -290,7 +340,7 @@ export default async function handler(req: Request, _context: Context) {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=180", // 3-min cache
+      "Cache-Control": "public, max-age=180",
     },
   });
 }

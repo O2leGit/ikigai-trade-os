@@ -221,18 +221,21 @@ export default async function handler(_req: Request, _context: Context) {
     await store.setJSON(`daily/${todayKey}`, briefing);
     await store.setJSON(`archive/${todayKey}/${editionKey}`, briefing);
 
-    // Update archive index
+    // Update archive index -- replace existing entry for same date+edition, don't duplicate
     try {
       const indexRaw = await store.get("archive-index");
       const index: any[] = indexRaw ? JSON.parse(indexRaw) : [];
-      index.unshift({
+      const filtered = index.filter((e: any) => !(e.date === todayKey && e.edition === editionKey));
+      const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" });
+      filtered.unshift({
         date: todayKey,
         edition: editionKey,
         editionLabel: edition,
         generatedAt: now.toISOString(),
+        timeLabel: timeStr,
       });
       // Keep last 120 entries (roughly 30 days x 4 editions)
-      await store.set("archive-index", JSON.stringify(index.slice(0, 120)));
+      await store.set("archive-index", JSON.stringify(filtered.slice(0, 120)));
     } catch {
       // Non-fatal
     }

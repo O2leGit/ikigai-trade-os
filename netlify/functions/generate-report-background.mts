@@ -285,19 +285,23 @@ export default async function handler(_req: Request, _context: Context) {
     await store.setJSON(`daily/${todayKey}`, report);
     await store.setJSON(`archive/${todayKey}/${edKey}`, report);
 
-    // Update report archive index
+    // Update report archive index -- replace existing entry for same date+edition, don't duplicate
     try {
       const indexRaw = await store.get("archive-index");
       const index: any[] = indexRaw ? JSON.parse(indexRaw) : [];
-      index.unshift({
+      // Remove any existing entry for this date+edition
+      const filtered = index.filter((e: any) => !(e.date === todayKey && e.edition === edKey));
+      const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" });
+      filtered.unshift({
         date: todayKey,
         edition: edKey,
         editionLabel: edition.title,
         title: report.title || edition.title,
         tagline: report.tagline || "",
         generatedAt: now.toISOString(),
+        timeLabel: timeStr,
       });
-      await store.set("archive-index", JSON.stringify(index.slice(0, 120)));
+      await store.set("archive-index", JSON.stringify(filtered.slice(0, 120)));
     } catch { /* non-fatal */ }
 
     await store.setJSON(`status/${todayKey}`, { status: "ready", generatedAt: now.toISOString() });

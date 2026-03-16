@@ -9,6 +9,7 @@ type ReportEntry = {
   title?: string;
   tagline?: string;
   generatedAt: string;
+  timeLabel?: string;
 };
 
 export default function ReportArchive() {
@@ -207,7 +208,7 @@ export default function ReportArchive() {
                           </span>
                           <span className="text-muted-foreground/40">|</span>
                           <span className="text-xs text-muted-foreground">
-                            {formatTime(entry.generatedAt)}
+                            {entry.timeLabel || formatTime(entry.generatedAt)} CT
                           </span>
                         </div>
                       </div>

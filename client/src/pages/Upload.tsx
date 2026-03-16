@@ -125,6 +125,20 @@ function parseCsv(csvText: string, fileName: string): ParsedFile {
     }
   }
   if (nlv === 0) { for (const line of lines) { const m = line.match(/Net Liquidating Value[^,]*,\s*"?\$?([\d,]+\.?\d*)"/i); if (m) { nlv = parseNum(m[1]) ?? 0; break; } } }
+  // Fallback: sum P&L from individual positions if summary didn't have it
+  if (openPnl === 0 && positions.length > 0) {
+    openPnl = positions.reduce((s, p) => s + (p.openPnl ?? 0), 0);
+  }
+  // Fallback: estimate NLV from position market values if summary didn't have it
+  if (nlv === 0 && positions.length > 0) {
+    nlv = positions.reduce((s, p) => {
+      if (p.mark != null && p.quantity != null) {
+        const mult = p.type === "option" ? 100 : 1;
+        return s + Math.abs(p.quantity) * p.mark * mult;
+      }
+      return s;
+    }, 0);
+  }
   return { fileName, accountId, statementDate, nlv, openPnl, positions };
 }
 

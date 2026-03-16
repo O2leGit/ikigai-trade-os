@@ -78,7 +78,9 @@ Output ONLY valid JSON (no markdown fences) with these keys:
 - ideasToday: array of 3-5 objects { rank (1-5), strategy, trade (exact strikes/DTE/credit), rationale, risk, reward, conviction ("HIGH"/"MEDIUM"/"LOW"), edge (what makes this trade better than average) }
 - ideasThisWeek: array of 3-5 objects { rank, strategy, trade, rationale, risk, reward, conviction, setupTrigger (what to watch for entry) }
 - ideasSwing: array of 3-5 objects { rank, strategy, trade, rationale, risk, reward, conviction, timeframe (e.g. "4-6 weeks"), managementPlan (rolling/adjustment strategy) }
-- ideasLeaps: array of 2-3 objects { rank, strategy, trade, rationale, risk, reward, conviction, thesis (bull/bear case for the position), timeframe }`;
+- ideasLeaps: array of 2-3 objects { rank, strategy, trade, rationale, risk, reward, conviction, thesis (bull/bear case for the position), timeframe }
+
+CRITICAL: Keep rationale/actionDetail/riskNote fields SHORT (max 20 words each). You MUST output complete, valid JSON -- do not truncate. Close all brackets and braces.`;
 
 export default async function handler(req: Request, _context: Context) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -164,7 +166,7 @@ export default async function handler(req: Request, _context: Context) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 8000,
+        max_tokens: 16000,
         system: SYSTEM_PROMPT,
         messages: [{
           role: "user",

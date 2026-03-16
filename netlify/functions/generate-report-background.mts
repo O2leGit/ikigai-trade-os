@@ -36,31 +36,74 @@ function getReportEdition(now: Date): { title: string; snapshot: string; context
   const dayOfWeek = ct.getDay();
   const dayName = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][dayOfWeek];
 
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
+  if (dayOfWeek === 6) {
     return {
-      title: `WEEKEND REPORT & WEEK AHEAD PREVIEW`,
-      snapshot: `WEEKEND SNAPSHOT -- ${hour}:00 AM CT`,
-      context: "Markets are closed. Recap the week, preview next week, identify swing setups."
+      title: `END OF WEEK REPORT & WEEKLY SCORECARD`,
+      snapshot: `SATURDAY REVIEW -- ${hour}:00 AM CT`,
+      context: `SATURDAY END-OF-WEEK REVIEW. Write like a Goldman Sachs weekly strategy note. Structure:
+- CRITICAL ALERT: Biggest risk or opportunity from the week that carries into next week
+- WHAT HAPPENED: Full week recap with Monday-Friday day-by-day progression of key moves. Which sectors rotated in/out. How VIX term structure evolved. Key levels that broke or held.
+- TRADE SCORECARD: Grade each trade idea from the week (RIGHT/WRONG/PARTIAL). Calculate win rate and total P&L estimate. Identify what the market taught us.
+- WEEKLY THESIS: Was our thesis right? What did we miss? What surprised us?
+- SECTOR OVERVIEW: Full sector performance for the week with clear winners/losers and rotation signals
+- TRADE IDEAS: Swing trades to put on Monday morning. These should be 2-4 week positions based on weekly chart setups, not day trades.
+- BOTTOM LINE: 2-3 paragraphs on what to expect next week and how to position for it.`
+    };
+  }
+  if (dayOfWeek === 0) {
+    return {
+      title: `WEEK AHEAD PREVIEW & STRATEGY MEMO`,
+      snapshot: `SUNDAY BRIEFING -- ${hour}:00 AM CT`,
+      context: `SUNDAY WEEK-AHEAD STRATEGY MEMO. Write like a JPMorgan Monday morning strategy note sent to the trading desk Sunday night. Structure:
+- CRITICAL ALERT: Single biggest event risk this week (FOMC, CPI, earnings, etc.) and how to position
+- WHAT HAPPENED: Brief recap of Friday close and weekend developments (geopolitical, crypto, futures)
+- WEEK AHEAD CALENDAR: Every major event this week with exact dates/times and expected market impact. For each event, specify: what the consensus expects, what would be bullish vs bearish, and the specific options trade to put on
+- TRADE IDEAS: Monday opening trades (first 30 min plays) + weekly swing setups. Each with exact strikes, DTE, entry/stop/target
+- SECTOR OVERVIEW: Coming week's sector catalysts (earnings by sector, data releases affecting sectors)
+- KEY LEVELS: Support/resistance for SPX, QQQ, IWM, VIX for the coming week
+- BOTTOM LINE: The ONE trade you'd make if you could only make one this week. Full conviction thesis.`
     };
   }
   if (hour < 9) {
     return {
       title: `${dayName} MORNING PRE-MARKET REPORT`,
       snapshot: `${dayName} MORNING SNAPSHOT -- 7:00 AM CT`,
-      context: "Pre-market. Focus on overnight action, gaps, opening trades."
+      context: `PRE-MARKET MORNING BRIEF. Write like a Citadel pre-market desk note at 6:30 AM. Structure:
+- CRITICAL ALERT: Overnight catalyst that changes today's trading plan (if any)
+- WHAT HAPPENED: Overnight futures action, Asia/Europe session recap, pre-market movers with exact % moves. Gap analysis: is SPY gapping up/down and by how much?
+- TODAY'S CALENDAR: Economic data releases with exact times, earnings before the bell, Fed speakers
+- TRADE IDEAS: Opening bell plays for the first 30 minutes. Overnight gap fade vs trend trades. Exact entries, stops, targets for 0DTE and intraday positions
+- SECTOR OVERVIEW: Pre-market sector ETF moves, which sectors to watch today
+- KEY LEVELS: Today's pivot levels, prior day high/low, overnight high/low
+- BOTTOM LINE: Today's game plan in 3 sentences. What's the setup and how do we trade it?`
     };
   }
   if (hour < 15) {
     return {
       title: `${dayName} INTRADAY MARKET UPDATE`,
       snapshot: `${dayName} INTRADAY SNAPSHOT -- ${hour}:00 CT`,
-      context: "Markets open. Focus on session development, tactical adjustments, intraday levels."
+      context: `INTRADAY TACTICAL UPDATE. Write like a Morgan Stanley mid-day trading desk flash. Structure:
+- CRITICAL ALERT: Biggest development since the open that changes positioning
+- WHAT HAPPENED: Morning session recap. Did we gap and go or gap and fade? Key movers and why. Volume analysis -- is this a real move or low conviction?
+- LIVE SCORECARD: Grade morning trade ideas (if pre-market report was generated). What hit, what stopped out
+- TRADE IDEAS: Afternoon session plays. Power hour setups (2:30-3:00 PM). Mean reversion if morning was trending, breakout continuation if volume confirms. Exact strikes and entries
+- SECTOR OVERVIEW: Intraday rotation -- which sectors are gaining/losing momentum mid-session
+- KEY LEVELS: Updated intraday levels based on morning action. Where are the stops clustered?
+- BOTTOM LINE: Is the morning move sustainable? What to do in the last 2 hours.`
     };
   }
   return {
     title: `${dayName} END OF DAY REPORT`,
     snapshot: `${dayName} CLOSING SNAPSHOT -- 3:00 PM CT`,
-    context: "Markets closed. Full session recap, after-hours movers, tomorrow preview."
+    context: `END OF DAY CLOSING REPORT. Write like a Deutsche Bank end-of-day market wrap sent to portfolio managers. Structure:
+- CRITICAL ALERT: Closing development that affects tomorrow's open (after-hours earnings, Fed comments, geopolitical)
+- WHAT HAPPENED: Full session narrative. Open to close story. Key reversal points and why. Volume vs average -- was this a conviction day? Breadth analysis (advance/decline). Where did the market close relative to its range?
+- TRADE SCORECARD: Grade ALL trade ideas from today's reports (RIGHT/WRONG/PARTIAL). Win rate and estimated P&L
+- AFTER HOURS: Key earnings reporting after the bell with expectations and initial reactions
+- TRADE IDEAS: Overnight holds (swing trades to keep). Tomorrow's opening setup based on today's close. Which side of the market to favor tomorrow
+- SECTOR OVERVIEW: End-of-day sector performance, rotation signals for tomorrow
+- KEY LEVELS: Closing levels that matter for tomorrow. Where does support/resistance reset?
+- BOTTOM LINE: What did the market tell us today? One-paragraph conviction view for tomorrow.`
   };
 }
 

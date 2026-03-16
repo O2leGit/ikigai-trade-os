@@ -1,5 +1,4 @@
-import { trpc } from "@/lib/trpc";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle,
   AlertTriangle,
@@ -90,8 +89,22 @@ function AccountUploadCard({
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const upload = trpc.accounts.uploadCsv.useMutation({
-    onSuccess: (data) => {
+  const [isUploading, setIsUploading] = useState(false);
+
+  const uploadFile = useCallback(async (accountId: string, csvContent: string) => {
+    setIsUploading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/upload-csv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId, csvContent }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(errData.error || `Upload failed (${res.status})`);
+      }
+      const data = await res.json();
       setParseResult({
         nlv: data.nlv,
         openPnl: data.openPnl,
@@ -99,13 +112,13 @@ function AccountUploadCard({
         optionsCount: data.optionsCount,
         statementDate: data.statementDate,
       });
-      setError(null);
       onUploadSuccess();
-    },
-    onError: (err) => {
-      setError(err.message);
-    },
-  });
+    } catch (err: any) {
+      setError(err.message || "Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  }, [onUploadSuccess]);
 
   const processFile = useCallback(
     (file: File) => {
@@ -117,11 +130,11 @@ function AccountUploadCard({
       reader.onload = (e) => {
         const content = e.target?.result as string;
         if (!content) { setError("Could not read file"); return; }
-        upload.mutate({ accountId, csvContent: content });
+        uploadFile(accountId, content);
       };
       reader.readAsText(file);
     },
-    [accountId, upload]
+    [accountId, uploadFile]
   );
 
   const onDrop = useCallback(
@@ -140,7 +153,7 @@ function AccountUploadCard({
   };
 
   const hasUpload = status?.lastUpload != null;
-  const isLoading = upload.isPending;
+  const isLoading = isUploading;
   const isSuccess = parseResult !== null;
 
   return (
@@ -361,9 +374,24 @@ function UploadSummaryBar({
 
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────
 export default function UploadPage() {
-  const { data: statusData, refetch } = trpc.accounts.uploadStatus.useQuery(undefined, {
-    refetchInterval: 10_000,
-  });
+  const [statusData, setStatusData] = useState<Array<{ accountId: string; lastUpload: { nlv: string; openPnl: string; statementDate: string; uploadedAt: Date } | null }> | null>(null);
+
+  const refetch = useCallback(async () => {
+    try {
+      const res = await fetch("/api/upload-status");
+      if (res.ok) {
+        const data = await res.json();
+        setStatusData(data);
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  // Fetch status on mount and poll every 10s
+  useEffect(() => {
+    refetch();
+    const iv = setInterval(refetch, 10_000);
+    return () => clearInterval(iv);
+  }, [refetch]);
 
   const totalNlv = statusData
     ? statusData.reduce((sum, s) => sum + (s.lastUpload ? parseFloat(s.lastUpload.nlv) : 0), 0)

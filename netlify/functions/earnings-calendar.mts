@@ -98,11 +98,11 @@ const PRIORITY_TICKERS = new Set([
 
 export default async function handler(req: Request, _context: Context) {
   const url = new URL(req.url);
-  const key = url.searchParams.get("key");
+  const key = url.searchParams.get("key") || process.env.FINNHUB_KEY;
 
   if (!key) {
     return new Response(
-      JSON.stringify({ error: "Finnhub API key required" }),
+      JSON.stringify({ error: "Finnhub API key required. Set FINNHUB_KEY env var." }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }

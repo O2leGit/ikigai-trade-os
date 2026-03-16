@@ -48,11 +48,12 @@ function buildNotes(event: FinnhubEconomicEvent): string {
 
 export default async function handler(req: Request, _context: Context) {
   const url = new URL(req.url);
-  const key = url.searchParams.get("key");
+  // Try query param first, then env var
+  const key = url.searchParams.get("key") || process.env.FINNHUB_KEY;
 
   if (!key) {
     return new Response(
-      JSON.stringify({ error: "Finnhub API key required. Configure in Connections page." }),
+      JSON.stringify({ error: "Finnhub API key required. Set FINNHUB_KEY env var or configure in Connections page." }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }

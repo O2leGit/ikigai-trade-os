@@ -130,10 +130,11 @@ export function useLiveData() {
   }, []);
 
   const fetchCalendar = useCallback(async () => {
-    const key = localStorage.getItem("ikigai-apikey-finnhub");
-    if (!key) return null;
     try {
-      const res = await fetch(`/api/economic-calendar?key=${encodeURIComponent(key)}`);
+      // Server uses FINNHUB_KEY env var; optionally pass localStorage key as fallback
+      const key = localStorage.getItem("ikigai-apikey-finnhub");
+      const url = key ? `/api/economic-calendar?key=${encodeURIComponent(key)}` : `/api/economic-calendar`;
+      const res = await fetch(url);
       if (!res.ok) return null;
       return (await res.json()) as CalendarEvent[];
     } catch {
@@ -142,10 +143,10 @@ export function useLiveData() {
   }, []);
 
   const fetchEarnings = useCallback(async (): Promise<EarningsData | null> => {
-    const key = localStorage.getItem("ikigai-apikey-finnhub");
-    if (!key) return null;
     try {
-      const res = await fetch(`/api/earnings-calendar?key=${encodeURIComponent(key)}`);
+      const key = localStorage.getItem("ikigai-apikey-finnhub");
+      const url = key ? `/api/earnings-calendar?key=${encodeURIComponent(key)}` : `/api/earnings-calendar`;
+      const res = await fetch(url);
       if (!res.ok) return null;
       return (await res.json()) as EarningsData;
     } catch {

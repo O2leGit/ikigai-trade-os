@@ -295,11 +295,34 @@ function normalizeEarningsPlays(v: any): any[] | null {
   return null;
 }
 
+// Normalize AI Summary: supports new structured sections format + legacy paragraphs
+function normalizeAISummary(raw: any): any {
+  if (!raw || typeof raw !== "object") return null;
+  const genAt = typeof raw.generatedAt === "string" ? raw.generatedAt : new Date().toISOString();
+
+  // New structured format: { sections: [...] }
+  if (Array.isArray(raw.sections) && raw.sections.length > 0) {
+    const sections = raw.sections.map((s: any) => ({
+      title: s.title || "Section",
+      type: s.type || "bullets",
+      items: Array.isArray(s.items) ? s.items : [],
+    }));
+    return { generatedAt: genAt, sections, paragraphs: null };
+  }
+
+  // Legacy format: { paragraphs: [...] }
+  if (Array.isArray(raw.paragraphs) && raw.paragraphs.length > 0) {
+    return { generatedAt: genAt, sections: null, paragraphs: raw.paragraphs };
+  }
+
+  return null;
+}
+
 function mergeBriefing(live: Record<string, unknown>) {
   return {
     BRIEFING_DATE: typeof live.briefingDate === "string" ? live.briefingDate : staticData.BRIEFING_DATE,
     BRIEFING_EDITION: typeof live.briefingEdition === "string" ? live.briefingEdition : staticData.BRIEFING_EDITION,
-    AI_SUMMARY: safe(live.aiSummary, (v) => typeof v.generatedAt === "string" && Array.isArray(v.paragraphs), staticData.AI_SUMMARY),
+    AI_SUMMARY: normalizeAISummary(live.aiSummary) || staticData.AI_SUMMARY,
     KEY_LEVELS: normalizeKeyLevels(live.keyLevels) || staticData.KEY_LEVELS,
     FEAR_GAUGE: normalizeFearGauge(live.fearGauge) || staticData.FEAR_GAUGE,
     OVERNIGHT_DEVELOPMENTS: normalizeOvernightDevelopments(live.overnightDevelopments) || staticData.OVERNIGHT_DEVELOPMENTS,

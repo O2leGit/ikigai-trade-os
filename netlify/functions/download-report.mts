@@ -95,7 +95,7 @@ function buildReport(r: any, mkt: Array<{ name: string; price: number | null; ch
   const c: (Paragraph | Table)[] = [];
 
   // Title block
-  c.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [new TextRun({ text: r.title || "DAILY PRE-MARKET REPORT", font: FONT, bold: true, color: NAVY, size: 40 })] }));
+  c.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [new TextRun({ text: r.title || "DAILY MARKET REPORT", font: FONT, bold: true, color: NAVY, size: 40 })] }));
   c.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 20 }, children: [new TextRun({ text: r.dateSubtitle || "", font: FONT, color: BLUE, size: 24 })] }));
   c.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 200 }, children: [new TextRun({ text: r.tagline || "", font: FONT, bold: true, italics: true, color: GRAY, size: 22 })] }));
 
@@ -294,7 +294,7 @@ export default async function handler(req: Request, _context: Context) {
       headers: {
         ...headers,
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${dayName}_Premarket_${todayKey}.docx"`,
+        "Content-Disposition": `attachment; filename="${dayName}_${((reportData as any)?._meta?.editionKey || "report").replace(/\s+/g, "_")}_${todayKey}.docx"`,
       },
     });
   } catch (err) {

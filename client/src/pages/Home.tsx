@@ -1408,7 +1408,7 @@ export default function Home() {
 // ─── LAYER COMPONENTS ───────────────────────────────────────
 
 function AIIntelligenceSummary({ aiSummary, meta, onRefresh }: {
-  aiSummary: { generatedAt: string; paragraphs: string[] };
+  aiSummary: { generatedAt: string; paragraphs?: string[] | null; sections?: any[] | null };
   meta: { generatedAt: string | null; isLive: boolean; isLoading: boolean };
   onRefresh: () => Promise<void>;
 }) {
@@ -1423,6 +1423,81 @@ function AIIntelligenceSummary({ aiSummary, meta, onRefresh }: {
     setRefreshing(true);
     await onRefresh();
     setRefreshing(false);
+  };
+
+  // Render bold text wrapped in ** **
+  const renderBoldText = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <span key={i} className="font-bold text-foreground">{part.slice(2, -2)}</span>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  const signalColor = (s: string) => {
+    if (s === "bull") return "text-bull";
+    if (s === "bear") return "text-bear";
+    return "text-muted-foreground";
+  };
+
+  const signalBg = (s: string) => {
+    if (s === "bull") return "bg-bull/10 border-bull/30";
+    if (s === "bear") return "bg-bear/10 border-bear/30";
+    return "bg-secondary/30 border-border";
+  };
+
+  const renderSection = (section: any, idx: number) => {
+    const { title, type, items } = section;
+    if (!items || items.length === 0) return null;
+
+    return (
+      <div key={idx} className="space-y-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-primary/80 border-b border-primary/10 pb-1">{title}</h3>
+
+        {type === "metrics" && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {items.map((m: any, i: number) => (
+              <div key={i} className={`rounded-lg border px-3 py-2 ${signalBg(m.signal)}`}>
+                <div className="text-[10px] text-muted-foreground font-mono uppercase">{m.label}</div>
+                <div className="text-sm font-bold text-foreground">{m.value}</div>
+                {m.change && <div className={`text-xs font-mono ${signalColor(m.signal)}`}>{m.change}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {type === "bullets" && (
+          <ul className="space-y-1.5">
+            {items.map((bullet: string, i: number) => (
+              <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-foreground/85">
+                <span className="text-primary mt-1.5 text-[6px]">&#9679;</span>
+                <span>{renderBoldText(bullet)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {type === "trades" && (
+          <div className="space-y-2">
+            {items.map((t: any, i: number) => (
+              <div key={i} className="rounded-lg border border-border bg-secondary/10 px-3 py-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.direction === "SELL" ? "bg-bear/20 text-bear" : "bg-bull/20 text-bull"}`}>{t.direction}</span>
+                  <span className="text-sm font-bold text-foreground">{t.name}</span>
+                </div>
+                <p className="text-xs text-foreground/80 leading-relaxed">{t.details}</p>
+                <div className="flex gap-4 mt-1 text-[10px] font-mono text-muted-foreground">
+                  {t.trigger && <span>Entry: {t.trigger}</span>}
+                  {t.invalidation && <span className="text-bear/80">Kill: {t.invalidation}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -1464,7 +1539,7 @@ function AIIntelligenceSummary({ aiSummary, meta, onRefresh }: {
 
       {/* Content */}
       {!collapsed && (
-        <div className="px-5 py-4 space-y-3">
+        <div className="px-5 py-4 space-y-4">
           {refreshing || meta.isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
@@ -1475,8 +1550,12 @@ function AIIntelligenceSummary({ aiSummary, meta, onRefresh }: {
                 </div>
               ))}
             </div>
+          ) : aiSummary.sections && aiSummary.sections.length > 0 ? (
+            // New structured format with sections
+            aiSummary.sections.map((section: any, i: number) => renderSection(section, i))
           ) : (
-            (aiSummary.paragraphs || []).map((p, i) => (
+            // Legacy paragraphs fallback
+            (aiSummary.paragraphs || []).map((p: string, i: number) => (
               <p key={i} className="text-sm leading-relaxed text-foreground/85">{p}</p>
             ))
           )}

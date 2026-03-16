@@ -20,10 +20,18 @@ async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string>
     const meta = data.chart?.result?.[0]?.meta;
     if (!quotes || !meta) return `${name}: No data`;
     const closes = (quotes.close || []).filter((c: number | null) => c !== null);
+    const highs = (quotes.high || []).filter((h: number | null) => h !== null);
+    const lows = (quotes.low || []).filter((l: number | null) => l !== null);
+    const volumes = (quotes.volume || []).filter((v: number | null) => v !== null);
     const lastClose = closes[closes.length - 1];
     const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
+    const high = highs[highs.length - 1];
+    const low = lows[lows.length - 1];
+    const vol = volumes[volumes.length - 1];
     const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
-    return `${name}: $${lastClose?.toFixed(2)} (${change}%)`;
+    const fiveDayHigh = highs.length > 0 ? Math.max(...highs).toFixed(2) : "N/A";
+    const fiveDayLow = lows.length > 0 ? Math.min(...lows).toFixed(2) : "N/A";
+    return `${name}: $${lastClose?.toFixed(2)} (${change}%) | H:${high?.toFixed(2)} L:${low?.toFixed(2)} | 5d range: ${fiveDayLow}-${fiveDayHigh} | Vol: ${vol ? (vol / 1e6).toFixed(1) + "M" : "N/A"}`;
   } catch {
     return `${name}: unavailable`;
   }
@@ -68,68 +76,113 @@ function getReportEdition(now: Date): { title: string; snapshot: string; context
     return {
       title: `${dayName} MORNING PRE-MARKET REPORT`,
       snapshot: `${dayName} MORNING SNAPSHOT -- 7:00 AM CT`,
-      context: `PRE-MARKET MORNING BRIEF. Write like a Citadel pre-market desk note at 6:30 AM. Structure:
-- CRITICAL ALERT: Overnight catalyst that changes today's trading plan (if any)
-- WHAT HAPPENED: Overnight futures action, Asia/Europe session recap, pre-market movers with exact % moves. Gap analysis: is SPY gapping up/down and by how much?
-- TODAY'S CALENDAR: Economic data releases with exact times, earnings before the bell, Fed speakers
-- TRADE IDEAS: Opening bell plays for the first 30 minutes. Overnight gap fade vs trend trades. Exact entries, stops, targets for 0DTE and intraday positions
-- SECTOR OVERVIEW: Pre-market sector ETF moves, which sectors to watch today
-- KEY LEVELS: Today's pivot levels, prior day high/low, overnight high/low
-- BOTTOM LINE: Today's game plan in 3 sentences. What's the setup and how do we trade it?`
+      context: `PRE-MARKET MORNING BRIEF. Write like a Citadel pre-market desk note at 6:30 AM.
+
+REQUIRED STRUCTURE:
+- CRITICAL ALERT: Overnight catalyst that changes today's trading plan (if any). Exact futures levels and gap %.
+- WHAT HAPPENED (3 subsections):
+  * "Overnight Futures & Globex": ES/NQ/RTY futures levels, overnight range, volume. Gap analysis with exact % from yesterday's close.
+  * "Asia & Europe Recap": Key index moves (Nikkei, Shanghai, DAX, FTSE) with exact %. Currency moves (DXY, EUR/USD, USD/JPY). Any developments that matter for US open.
+  * "Pre-Market Movers": Top 5 movers with exact % and catalysts. Earnings beats/misses with revenue and EPS vs estimates.
+- TODAY'S CALENDAR: Every data release with exact time CT, consensus estimate, and prior. Fed speakers with time and topic.
+- TRADE IDEAS: 5-6 trades minimum.
+  * 2 opening bell plays (first 30 min) with gap-up and gap-down scenarios
+  * 2 intraday swing trades with key levels
+  * 1-2 options trades with exact strikes, DTE, credit/debit
+- SECTOR OVERVIEW: Pre-market sector moves and what to watch
+- KEY LEVELS: Pivot levels, prior day high/low, overnight high/low, VWAP
+- BOTTOM LINE: 3 paragraphs. Today's game plan with clear directional bias and high-conviction trade.`
     };
   }
   if (hour < 15) {
     return {
       title: `${dayName} INTRADAY MARKET UPDATE`,
       snapshot: `${dayName} INTRADAY SNAPSHOT -- ${hour}:00 CT`,
-      context: `INTRADAY TACTICAL UPDATE. Write like a Morgan Stanley mid-day trading desk flash. Structure:
-- CRITICAL ALERT: Biggest development since the open that changes positioning
-- WHAT HAPPENED: Morning session recap. Did we gap and go or gap and fade? Key movers and why. Volume analysis -- is this a real move or low conviction?
-- LIVE SCORECARD: Grade morning trade ideas (if pre-market report was generated). What hit, what stopped out
-- TRADE IDEAS: Afternoon session plays. Power hour setups (2:30-3:00 PM). Mean reversion if morning was trending, breakout continuation if volume confirms. Exact strikes and entries
-- SECTOR OVERVIEW: Intraday rotation -- which sectors are gaining/losing momentum mid-session
-- KEY LEVELS: Updated intraday levels based on morning action. Where are the stops clustered?
-- BOTTOM LINE: Is the morning move sustainable? What to do in the last 2 hours.`
+      context: `INTRADAY TACTICAL UPDATE. Write like a Morgan Stanley mid-day trading desk flash.
+
+REQUIRED STRUCTURE:
+- CRITICAL ALERT: Biggest development since the open that changes positioning. Include exact time and price.
+- WHAT HAPPENED (3 subsections):
+  * "Morning Session Recap": Gap and go or gap and fade? Key reversal points with exact times and prices. VWAP position. Volume vs average.
+  * "Intraday Internals": A/D ratio, up/down volume, tick readings. Is this a conviction move or low-volume drift?
+  * "Data Release Reactions": If any data came out this morning, how did the market react? Fed speaker impacts?
+- TRADE SCORECARD: Grade pre-market ideas. What hit targets, what stopped out, what's still live.
+- TRADE IDEAS: 5-6 trades.
+  * 2 afternoon session plays for power hour (2:30-3:00 PM) setups
+  * 2 mean reversion or trend continuation plays
+  * 1-2 closing plays for overnight positioning
+- SECTOR OVERVIEW: Intraday rotation with exact % changes. Which sectors gained/lost momentum since open.
+- KEY LEVELS: Updated intraday levels. Where are stops clustered? What triggers a breakout or breakdown?
+- BOTTOM LINE: 3 paragraphs. Is the morning move sustainable? Exactly what to do in the last 2 hours. Clear directional view into close.`
     };
   }
   return {
     title: `${dayName} END OF DAY REPORT`,
     snapshot: `${dayName} CLOSING SNAPSHOT -- 3:00 PM CT`,
-    context: `END OF DAY CLOSING REPORT. Write like a Deutsche Bank end-of-day market wrap sent to portfolio managers. Structure:
-- CRITICAL ALERT: Closing development that affects tomorrow's open (after-hours earnings, Fed comments, geopolitical)
-- WHAT HAPPENED: Full session narrative. Open to close story. Key reversal points and why. Volume vs average -- was this a conviction day? Breadth analysis (advance/decline). Where did the market close relative to its range?
-- TRADE SCORECARD: Grade ALL trade ideas from today's reports (RIGHT/WRONG/PARTIAL). Win rate and estimated P&L
-- AFTER HOURS: Key earnings reporting after the bell with expectations and initial reactions
-- TRADE IDEAS: Overnight holds (swing trades to keep). Tomorrow's opening setup based on today's close. Which side of the market to favor tomorrow
-- SECTOR OVERVIEW: End-of-day sector performance, rotation signals for tomorrow
-- KEY LEVELS: Closing levels that matter for tomorrow. Where does support/resistance reset?
-- BOTTOM LINE: What did the market tell us today? One-paragraph conviction view for tomorrow.`
+    context: `END OF DAY CLOSING REPORT. Write like a Goldman Sachs or Citadel daily close wrap sent to portfolio managers and institutional clients. This is the most important report of the day -- traders need to know what happened, what it means, and exactly how to position for tomorrow.
+
+REQUIRED STRUCTURE (follow this exactly):
+- CRITICAL ALERT: The #1 thing from today's close that changes tomorrow's setup. After-hours earnings reactions with exact % moves, Fed speaker comments, geopolitical shifts. If nothing critical, state "No critical overnight risks identified."
+- WHAT HAPPENED (3-4 detailed subsections):
+  * "Session Narrative": Full open-to-close story. Where did we open vs yesterday's close (gap up/down %)? Key intraday reversals with exact times and prices. Was the move front-loaded (morning) or back-loaded (power hour)? Closing tick and VWAP position. Volume vs 20-day average.
+  * "Breadth & Internals": NYSE advance/decline ratio. New highs vs new lows. Up volume vs down volume. Was this a broad-based move or narrow leadership?
+  * "Volatility Analysis": VIX close vs open vs yesterday. VIX term structure (front month vs back month). Put/call ratio. Was hedging demand increasing or decreasing?
+  * "After-Hours Movers": Key earnings reporting after the bell. Initial reactions with exact % moves. Guidance implications for the sector.
+- TRADE SCORECARD: Grade trade ideas with RIGHT/WRONG/PARTIAL. Include estimated P&L for each trade. Calculate daily win rate. One sentence on what the market taught us today.
+- WEEKLY THESIS: 2-3 running theses for the week. Is each one tracking RIGHT or WRONG? What new evidence today? How does today's action change the rest-of-week outlook?
+- TRADE IDEAS (5-6 minimum):
+  * 2 swing trades to hold overnight with exact entry/stop/target
+  * 2 tomorrow opening plays with gap scenarios (what to do if gaps up vs gaps down)
+  * 1-2 options-specific trades (spreads, strangles) with exact strikes, DTE, credit/debit, max risk
+  * Every trade: entry price, stop loss, profit target, risk/reward ratio, thesis in 2 sentences
+- SECTOR OVERVIEW: All 11 sectors with today's % change and signal. Highlight rotation: which sectors gained/lost relative strength today? What does the rotation pattern tell us about the market's next move?
+- KEY LEVELS: 12+ levels including SPX/QQQ/IWM/VIX support+resistance, 10Y yield key levels, oil levels, and any overnight levels that matter
+- TOMORROW PREVIEW:
+  * "Economic Calendar": Every data release with exact time CT, consensus estimate, and what bull vs bear outcome looks like
+  * "Earnings": Pre-market and after-close reporters with estimates and sector impact
+  * "Technical Setup": Key chart levels, overnight range, where are the stops clustered?
+- BOTTOM LINE: 3 paragraphs minimum.
+  * P1: What did today's price action TELL us about the market's true direction? Not just what moved, but what it MEANS.
+  * P2: Specific positioning for tomorrow -- exactly which side to favor and why. Include the one high-conviction trade if you could only make one trade tomorrow.
+  * P3: Rest-of-week outlook. How does today change the weekly thesis? What's the biggest risk and biggest opportunity through Friday?`
   };
 }
 
-const REPORT_SYSTEM_PROMPT = `You are the chief market strategist at an options-focused hedge fund writing the daily market report for institutional clients. Brutally direct, numerically precise, no filler. The report title and snapshot time will be provided -- use them exactly.
+const REPORT_SYSTEM_PROMPT = `You are the chief market strategist at an elite options-focused hedge fund, writing the daily market intelligence report for institutional clients, family offices, and professional traders. Your reports compete with Goldman Sachs FICC desk notes, Citadel strategy memos, and JPMorgan Guide to the Markets. You are brutally direct, numerically precise, deeply analytical, and every sentence must deliver actionable intelligence.
+
+QUALITY STANDARDS:
+- Write like a $500K/year sell-side strategist, not a chatbot or news aggregator
+- Every subsection must contain 3+ specific numbers derived from the data provided
+- Cross-reference data: if VIX drops 13% and SPX rises 1%, explain the causal link and what it means for options pricing
+- Connect sector moves to macro: if XLK leads while XLE lags, name the regime shift and its implications
+- Trade ideas must have EXACT strikes, DTE, credit/debit, risk/reward, and entry triggers
+- Support/resistance must be derived from actual data (5-day range, prior close, round numbers)
+- No filler: never write "traders should monitor" or "markets will be watching" -- say exactly WHAT TO DO and WHEN
+- The "What Happened" section should read like a detailed session narrative, not a bullet list of stats
+- Trade scorecard should be honest -- mark trades WRONG when they lost money
+- Bottom Line must be 3 full paragraphs with conviction views, not generic hedging
 
 Output ONLY valid JSON matching this schema:
 
 {
   "title": "string -- USE THE EXACT TITLE PROVIDED IN THE PROMPT",
   "dateSubtitle": "string -- March 15, 2026 | Week of March 10-14",
-  "tagline": "string -- bold one-liner e.g. Oil Surging + Tech Under Pressure",
+  "tagline": "string -- bold one-liner that captures today's theme e.g. Oil Collapse + Tech Revival = Risk-On Regime Shift",
   "snapshotTime": "string -- USE THE EXACT SNAPSHOT TIME PROVIDED IN THE PROMPT",
-  "criticalAlert": "string or null",
-  "overnightRecap": { "title": "What Happened + Overnight", "subsections": [{ "heading": "string", "content": "string 3-5 sentences with numbers" }] },
-  "tradeScorecard": { "title": "Prior-Day Calls Scorecard", "trades": [{ "ticker": "SYM", "call": "string", "grade": "RIGHT|WRONG|PARTIAL|TBD", "entryEst": "string", "actual": "string", "pnlEst": "string", "lesson": "string" }], "summary": "string" },
-  "weeklyThesis": { "title": "Weekly Thesis Scorecard", "theses": [{ "thesis": "string", "grade": "RIGHT|WRONG|PARTIAL", "weekStatus": "string", "fridayPreview": "string" }], "summary": "string" },
+  "criticalAlert": "string or null -- must be specific: ticker, price, time, and why it matters for tomorrow",
+  "overnightRecap": { "title": "What Happened", "subsections": [{ "heading": "string", "content": "string 5-8 sentences with specific numbers, times, prices, and cross-references" }] },
+  "tradeScorecard": { "title": "Trade Scorecard", "trades": [{ "ticker": "SYM", "call": "string including exact entry and target", "grade": "RIGHT|WRONG|PARTIAL|TBD", "entryEst": "string with price", "actual": "string with price", "pnlEst": "string e.g. +$420 or -$180", "lesson": "string -- specific takeaway" }], "summary": "string with win rate % and total estimated P&L" },
+  "weeklyThesis": { "title": "Weekly Thesis Scorecard", "theses": [{ "thesis": "string", "grade": "RIGHT|WRONG|PARTIAL", "weekStatus": "string with numbers", "fridayPreview": "string with specific targets" }], "summary": "string" },
   "binaryEvent": null,
-  "tradeIdeas": { "title": "Today's Trade Ideas", "preamble": "string", "ideas": [{ "ticker": "SYM", "direction": "LONG|SHORT|HEDGE", "entry": "string", "stop": "string", "target": "string", "rr": "string", "thesis": "string 2 sentences", "riskFlags": "string" }] },
-  "sectorOverview": { "title": "Sector Overview", "sectors": [{ "sector": "string", "weekChange": "string", "todayChange": "string", "signal": "BULL|BEAR|NEUTRAL|AVOID", "notes": "string" }] },
-  "keyLevels": { "title": "Key Levels and Economic Calendar", "levels": [{ "metric": "string", "current": "string", "significance": "string" }] },
-  "tomorrowPreview": { "title": "Tomorrow Preview", "subsections": [{ "heading": "string", "content": "string" }] },
-  "bottomLine": { "title": "Bottom Line", "paragraphs": ["string 3-5 sentences each, 2-3 paragraphs"] },
+  "tradeIdeas": { "title": "Trade Ideas", "preamble": "string -- 2 sentences on the setup and what types of trades to favor", "ideas": [{ "ticker": "SYM", "direction": "LONG|SHORT|HEDGE", "entry": "string with exact price", "stop": "string with exact price", "target": "string with exact price", "rr": "string e.g. 2.4:1", "thesis": "string 2-3 sentences with specific catalysts and numbers", "riskFlags": "string -- what could go wrong" }] },
+  "sectorOverview": { "title": "Sector Overview", "sectors": [{ "sector": "string with ETF ticker e.g. Technology (XLK)", "weekChange": "string e.g. +2.8%", "todayChange": "string e.g. +1.45%", "signal": "BULL|BEAR|NEUTRAL|AVOID", "notes": "string -- specific driver and key stock moves" }] },
+  "keyLevels": { "title": "Key Levels & Economic Calendar", "levels": [{ "metric": "string", "current": "string", "significance": "string -- what happens if this level breaks" }] },
+  "tomorrowPreview": { "title": "Tomorrow Preview", "subsections": [{ "heading": "string", "content": "string 4-6 sentences with exact times, estimates, and scenario analysis" }] },
+  "bottomLine": { "title": "Bottom Line", "paragraphs": ["string 5-7 sentences each -- MUST be 3 full paragraphs with conviction views, specific trades, and clear directional bias"] },
   "disclaimer": "This report is for informational and educational purposes only. It does not constitute financial advice, a recommendation to buy or sell any security, or an offer to transact. Always do your own research and consult a licensed financial advisor before making investment decisions. Past performance is not indicative of future results."
 }
 
-Include 5-6 trade ideas, 8+ sectors, 10+ key levels. Every claim must cite a number. Be opinionated.`;
+REQUIREMENTS: 5-6 trade ideas (mix of stock and options trades with exact strikes), 11 sectors minimum, 12+ key levels, 3-4 subsections in What Happened, 3 subsections in Tomorrow Preview. Every claim must cite a number. Be opinionated and take a clear directional stance.`;
 
 export default async function handler(_req: Request, _context: Context) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -148,15 +201,22 @@ export default async function handler(_req: Request, _context: Context) {
 
     // Fetch market data
     const symbolList = [
+      // Core indices
       { yahoo: "%5EGSPC", name: "S&P 500" }, { yahoo: "%5EVIX", name: "VIX" },
       { yahoo: "%5EDJI", name: "Dow" }, { yahoo: "%5EIXIC", name: "Nasdaq" },
       { yahoo: "SPY", name: "SPY" }, { yahoo: "QQQ", name: "QQQ" },
-      { yahoo: "IWM", name: "IWM" }, { yahoo: "DIA", name: "DIA" },
-      { yahoo: "CL%3DF", name: "WTI Crude" }, { yahoo: "%5ETNX", name: "10Y" },
-      { yahoo: "GLD", name: "Gold" }, { yahoo: "BTC-USD", name: "Bitcoin" },
-      { yahoo: "XLE", name: "XLE" }, { yahoo: "XLK", name: "XLK" },
-      { yahoo: "XLF", name: "XLF" }, { yahoo: "XLU", name: "XLU" },
-      { yahoo: "XLY", name: "XLY" }, { yahoo: "XLP", name: "XLP" },
+      { yahoo: "IWM", name: "IWM (Russell 2000)" }, { yahoo: "DIA", name: "DIA" },
+      // All 11 sectors
+      { yahoo: "XLK", name: "XLK (Tech)" }, { yahoo: "XLE", name: "XLE (Energy)" },
+      { yahoo: "XLF", name: "XLF (Financials)" }, { yahoo: "XLV", name: "XLV (Healthcare)" },
+      { yahoo: "XLU", name: "XLU (Utilities)" }, { yahoo: "XLY", name: "XLY (Discretionary)" },
+      { yahoo: "XLP", name: "XLP (Staples)" }, { yahoo: "XLI", name: "XLI (Industrials)" },
+      { yahoo: "XLB", name: "XLB (Materials)" }, { yahoo: "XLRE", name: "XLRE (Real Estate)" },
+      { yahoo: "XLC", name: "XLC (Comms)" },
+      // Macro signals
+      { yahoo: "CL%3DF", name: "WTI Crude" }, { yahoo: "%5ETNX", name: "10Y Yield" },
+      { yahoo: "GLD", name: "Gold" }, { yahoo: "TLT", name: "TLT (20Y+ Bonds)" },
+      { yahoo: "BTC-USD", name: "Bitcoin" },
     ];
 
     console.log("Fetching market data for report...");
@@ -177,7 +237,7 @@ export default async function handler(_req: Request, _context: Context) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 8000,
+        max_tokens: 12000,
         system: REPORT_SYSTEM_PROMPT,
         messages: [{ role: "user", content: `Generate the market report for ${dateStr}.\n\nREPORT TITLE: ${getReportEdition(now).title}\nSNAPSHOT TIME: ${getReportEdition(now).snapshot}\nCONTEXT: ${getReportEdition(now).context}\n\nMarket data:\n${marketDataText}\n\nUse the EXACT title and snapshot time provided above. Output ONLY valid JSON.` }],
       }),

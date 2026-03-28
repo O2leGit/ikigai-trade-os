@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useLiveData } from "@/hooks/useLiveData";
 import { useDynamicBriefing } from "@/hooks/useDynamicBriefing";
+import { useTradeStatus, TradeStatusResult } from "@/hooks/useTradeStatus";
 import { Link } from "wouter";
 import {
   TrendingUp,
@@ -149,6 +150,14 @@ export default function Home() {
     WEEKLY_THESIS_SCORECARD, DEEP_DIVE_TOOLS,
     meta: briefingMeta, refreshBriefing,
   } = useDynamicBriefing();
+
+  // Collect all trade ideas for live status checking
+  const allTradeIdeas = useMemo(() => [
+    ...(TRADING_IDEAS.today || []),
+    ...(TRADING_IDEAS.thisWeek || []),
+    ...(TRADING_IDEAS.thisMonth || []),
+  ].map((t: any) => ({ ticker: t.ticker, direction: t.direction, entry: t.entry, target: t.target, stop: t.stop, status: t.status })), [TRADING_IDEAS]);
+  const tradeStatus = useTradeStatus(allTradeIdeas);
 
   // Live data with fallback to briefing data
   const displayMarketSnapshot = liveData.marketSnapshot || MARKET_SNAPSHOT;
@@ -1349,6 +1358,20 @@ export default function Home() {
             {/* ── TRADING IDEAS ── */}
             <CollapsibleSection id="trading-ideas" title="Trading Ideas" icon={<Target className="w-4 h-4" />} defaultOpen={true} collapsed={collapsedSections} onToggle={toggleCollapse} updatedAt={briefingMeta.generatedAt}>
 
+              {/* Live status bar */}
+              <div className="flex items-center justify-between mt-3 mb-1 px-1">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${tradeStatus.isLoading ? "bg-yellow-400 animate-pulse" : tradeStatus.lastUpdated ? "bg-bull" : "bg-muted-foreground"}`} />
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {tradeStatus.isLoading ? "Checking live prices..." : tradeStatus.lastUpdated ? `Live prices as of ${tradeStatus.lastUpdated.toLocaleTimeString()}` : "Live prices unavailable"}
+                  </span>
+                </div>
+                <button onClick={tradeStatus.refresh} className="text-[10px] font-mono text-primary hover:text-primary/80 flex items-center gap-1" disabled={tradeStatus.isLoading}>
+                  <RefreshCw className={`w-3 h-3 ${tradeStatus.isLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+              </div>
+
               {/* TODAY */}
               <div className="mt-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -1357,7 +1380,7 @@ export default function Home() {
                 </div>
                 <div className="space-y-3">
                   {(TRADING_IDEAS.today || []).map((idea, i) => (
-                    <TradeIdeaCard key={i} idea={idea} />
+                    <TradeIdeaCard key={i} idea={idea} liveStatus={tradeStatus.getStatus(idea.ticker, idea.direction)} />
                   ))}
                 </div>
               </div>
@@ -1370,7 +1393,7 @@ export default function Home() {
                 </div>
                 <div className="space-y-3">
                   {(TRADING_IDEAS.thisWeek || []).map((idea, i) => (
-                    <TradeIdeaCard key={i} idea={idea} />
+                    <TradeIdeaCard key={i} idea={idea} liveStatus={tradeStatus.getStatus(idea.ticker, idea.direction)} />
                   ))}
                 </div>
               </div>
@@ -1383,7 +1406,7 @@ export default function Home() {
                 </div>
                 <div className="space-y-3">
                   {(TRADING_IDEAS.thisMonth || []).map((idea, i) => (
-                    <TradeIdeaCard key={i} idea={idea} />
+                    <TradeIdeaCard key={i} idea={idea} liveStatus={tradeStatus.getStatus(idea.ticker, idea.direction)} />
                   ))}
                 </div>
               </div>
@@ -1662,6 +1685,7 @@ function TradeStatusBadge({ status }: { status: string }) {
     status === "OPEN" ? "text-primary border-primary/30 bg-primary/10" :
     status === "FILLED" ? "text-bull border-bull/30 bg-bull/10" :
     status === "TARGET HIT" ? "text-bull border-bull/50 bg-bull/20" :
+    status === "AT ENTRY" ? "text-yellow-400 border-yellow-500/30 bg-yellow-900/10" :
     status === "STOPPED" ? "text-bear border-bear/30 bg-bear/10" :
     status === "CLOSED" ? "text-muted-foreground border-border bg-secondary" :
     "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
@@ -1883,7 +1907,7 @@ type TradeIdea = {
   status?: string;
 };
 
-function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
+function TradeIdeaCard({ idea, liveStatus }: { idea: TradeIdea; liveStatus?: TradeStatusResult }) {
   const isLong = idea.direction === "LONG";
   const isShort = idea.direction === "SHORT";
   const dirColor = isLong ? "text-bull border-bull/30 bg-bull/10"
@@ -1891,11 +1915,22 @@ function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
     : "text-yellow-400 border-yellow-600/30 bg-yellow-900/10";
 
   const hasLevels = idea.entry || idea.target || idea.stop;
+  const displayStatus = liveStatus?.computedStatus || idea.status;
+  const livePrice = liveStatus?.livePrice;
+  const priceUp = liveStatus && liveStatus.changePercent >= 0;
 
   return (
-    <div className="p-4 rounded-lg border border-border bg-card">
+    <div className={`p-4 rounded-lg border bg-card ${liveStatus?.hitTarget ? "border-bull/40" : liveStatus?.hitStop ? "border-bear/40" : "border-border"}`}>
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <span className="text-xl font-mono font-bold text-primary">{idea.ticker}</span>
+        {livePrice != null && (
+          <span className={`text-sm font-mono font-semibold ${priceUp ? "text-bull" : "text-bear"}`}>
+            ${livePrice.toFixed(2)}
+            <span className="text-[10px] ml-1">
+              {priceUp ? "+" : ""}{liveStatus!.changePercent.toFixed(1)}%
+            </span>
+          </span>
+        )}
         <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${dirColor}`}>
           {idea.direction}
         </span>
@@ -1903,9 +1938,30 @@ function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
           {idea.horizon}
         </span>
         {idea.conviction && <ConvictionBadge conviction={idea.conviction} />}
-        {idea.status && <TradeStatusBadge status={idea.status} />}
+        {displayStatus && <TradeStatusBadge status={displayStatus} />}
         {idea.rr && <span className="text-[10px] font-mono text-muted-foreground">R/R: {idea.rr}</span>}
       </div>
+
+      {/* Live distance indicators */}
+      {liveStatus && (liveStatus.distanceToTarget || liveStatus.distanceToStop) && (
+        <div className="flex gap-3 mb-2">
+          {liveStatus.distanceToTarget && (
+            <span className="text-[10px] font-mono text-bull/80">
+              Target: {liveStatus.distanceToTarget}
+            </span>
+          )}
+          {liveStatus.distanceToStop && (
+            <span className="text-[10px] font-mono text-bear/80">
+              Stop: {liveStatus.distanceToStop}
+            </span>
+          )}
+          {liveStatus.priceVsEntry && (
+            <span className="text-[10px] font-mono text-muted-foreground">
+              vs Entry: {liveStatus.priceVsEntry}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Trade structure (the actual trade) */}
       {idea.trade && (
@@ -1920,7 +1976,13 @@ function TradeIdeaCard({ idea }: { idea: TradeIdea }) {
 
       {/* Key levels -- only show if we have data */}
       {hasLevels && (
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className={`grid ${livePrice != null ? "grid-cols-4" : "grid-cols-3"} gap-2 mb-3`}>
+          {livePrice != null && (
+            <div className={`p-2 rounded border text-center ${priceUp ? "bg-bull/5 border-bull/20" : "bg-bear/5 border-bear/20"}`}>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Live</p>
+              <p className={`text-xs font-mono font-semibold ${priceUp ? "text-bull" : "text-bear"}`}>${livePrice.toFixed(2)}</p>
+            </div>
+          )}
           <div className="p-2 rounded bg-secondary/50 border border-border text-center">
             <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Entry</p>
             <p className="text-xs font-mono font-semibold text-foreground">{idea.entry || "—"}</p>

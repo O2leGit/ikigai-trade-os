@@ -85,7 +85,7 @@ export default async function handler(req: Request, _context: Context) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 6000,
         system: SYSTEM_PROMPT,
         messages: [{
@@ -121,7 +121,7 @@ export default async function handler(req: Request, _context: Context) {
     // Step 5: Store in Blobs
     briefing._meta = {
       generatedAt: now.toISOString(),
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
     };
 
     const store = getStore("briefings");

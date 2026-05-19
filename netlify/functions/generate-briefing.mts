@@ -188,7 +188,7 @@ Analyze this data and generate the full briefing JSON. Requirements:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 8192,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
@@ -222,7 +222,7 @@ Analyze this data and generate the full briefing JSON. Requirements:
     // Add metadata
     briefing._meta = {
       generatedAt: now.toISOString(),
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       marketDataPoints: marketData.split("\n").length,
     };
 

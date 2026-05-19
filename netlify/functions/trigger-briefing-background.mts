@@ -181,7 +181,7 @@ export default async function handler(_req: Request, _context: Context) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 7000,
         system: SYSTEM_PROMPT,
         messages: [{
@@ -219,7 +219,7 @@ export default async function handler(_req: Request, _context: Context) {
     // Store briefing with metadata
     briefing._meta = {
       generatedAt: now.toISOString(),
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       edition: editionKey,
       editionLabel: edition,
     };

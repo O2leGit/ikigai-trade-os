@@ -236,7 +236,7 @@ export default async function handler(_req: Request, _context: Context) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 12000,
         system: REPORT_SYSTEM_PROMPT,
         messages: [{ role: "user", content: `Generate the market report for ${dateStr}.\n\nREPORT TITLE: ${getReportEdition(now).title}\nSNAPSHOT TIME: ${getReportEdition(now).snapshot}\nCONTEXT: ${getReportEdition(now).context}\n\nMarket data:\n${marketDataText}\n\nUse the EXACT title and snapshot time provided above. Output ONLY valid JSON.` }],
@@ -272,7 +272,7 @@ export default async function handler(_req: Request, _context: Context) {
     const edition = getReportEdition(now);
     report._meta = {
       generatedAt: now.toISOString(),
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       editionKey: edition.title.toLowerCase().includes("pre-market") ? "premarket"
         : edition.title.toLowerCase().includes("intraday") ? "intraday"
         : edition.title.toLowerCase().includes("end of day") ? "eod"

@@ -18,6 +18,47 @@ import {
 } from "@/lib/utpApi";
 
 const ENGINES_QUERY_KEY = ["utp", "engines"] as const;
+const HELIOS_STATUS_QUERY_KEY = ["utp", "helios", "status"] as const;
+
+export type TrafficLight = "gray" | "green" | "yellow" | "red";
+
+export interface HeliosStatusResponse {
+  traffic_light: TrafficLight;
+  today: {
+    trading_date: string;
+    signals_evaluated: number;
+    signals_accepted: unknown[];
+    signals_vetoed: unknown[];
+    orders_submitted: unknown[];
+    fills: unknown[];
+    exits: unknown[];
+    positions: unknown[];
+    realized_r: number;
+    realized_pnl_usd: number;
+    engine_state: string;
+  };
+  recent_events: Array<{ ts: string; event: string; data: Record<string, unknown> }>;
+  engine?: Record<string, unknown>;
+  day_state?: Record<string, unknown>;
+  risk_params?: Record<string, unknown>;
+  schedule?: Record<string, unknown>;
+}
+
+/**
+ * Polls UTP for HELIOS today-snapshot every 5s. Drives the traffic-light
+ * banner and any other ambient HELIOS-state UI. Returns a synthetic gray
+ * status when UTP is unreachable so the banner does not vanish on error.
+ */
+export function useHeliosStatus() {
+  return useQuery<HeliosStatusResponse, UtpApiError>({
+    queryKey: HELIOS_STATUS_QUERY_KEY,
+    queryFn: ({ signal }) => utpGet<HeliosStatusResponse>("/api/helios/status", signal),
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
+    staleTime: 2_000,
+    retry: 1,
+  });
+}
 
 /**
  * List every engine registered on UTP. Polls every 10s while the page is

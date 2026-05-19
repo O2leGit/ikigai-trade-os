@@ -18,11 +18,52 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 
 import {
+  TrafficLight,
+  useHeliosStatus,
   useToggleEngineEnabled,
   useToggleEnginePaused,
   useUtpEngines,
 } from "@/hooks/useUtpEngines";
 import { EngineStatus, UTP_BASE_URL } from "@/lib/utpApi";
+
+const TRAFFIC_TONE: Record<TrafficLight, { dot: string; ring: string; bg: string; label: string }> = {
+  gray:   { dot: "bg-slate-500",   ring: "ring-slate-500/40",   bg: "bg-slate-900/40 border-slate-800",   label: "IDLE" },
+  green:  { dot: "bg-emerald-500", ring: "ring-emerald-500/40", bg: "bg-emerald-950/40 border-emerald-900", label: "GREEN" },
+  yellow: { dot: "bg-amber-500",   ring: "ring-amber-500/40",   bg: "bg-amber-950/40 border-amber-900",   label: "CAUTION" },
+  red:    { dot: "bg-red-500",     ring: "ring-red-500/40",     bg: "bg-red-950/40 border-red-900",       label: "HALT" },
+};
+
+function TrafficLightBanner() {
+  const statusQuery = useHeliosStatus();
+  const light: TrafficLight = (statusQuery.data?.traffic_light as TrafficLight) ?? "gray";
+  const tone = TRAFFIC_TONE[light];
+  const today = statusQuery.data?.today;
+
+  // Synthesize a "unreachable" label when the query is errored so users know
+  // why the banner is gray (otherwise gray could mean "idle" or "broken").
+  const subtitle = statusQuery.isError
+    ? `UTP unreachable -- ${statusQuery.error.message}`
+    : today
+      ? `${today.engine_state} -- ${today.signals_evaluated} evals, ${today.signals_accepted.length} accepted, ${today.fills.length} fills, realized R ${today.realized_r.toFixed(2)}`
+      : "no HELIOS snapshot yet";
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${tone.bg}`}>
+      <span className={`relative inline-flex h-3 w-3 rounded-full ${tone.dot}`}>
+        <span className={`absolute inline-flex h-full w-full rounded-full ring-4 ${tone.ring} animate-pulse`} />
+      </span>
+      <div className="flex-1">
+        <div className="text-sm font-semibold tracking-wide text-slate-100">
+          HELIOS: {tone.label}
+        </div>
+        <div className="text-xs text-slate-400 font-mono">{subtitle}</div>
+      </div>
+      {statusQuery.isFetching && (
+        <span className="text-[10px] text-slate-500 uppercase tracking-wider">live</span>
+      )}
+    </div>
+  );
+}
 
 const AUTONOMY_LABELS: Record<string, { label: string; tone: string }> = {
   observe: { label: "L1 OBSERVE", tone: "bg-slate-700 text-slate-200" },
@@ -168,6 +209,8 @@ export default function Engines() {
             </Button>
           </div>
         </header>
+
+        <TrafficLightBanner />
 
         {enginesQuery.isLoading && (
           <Card className="bg-slate-900/40 border-slate-800">

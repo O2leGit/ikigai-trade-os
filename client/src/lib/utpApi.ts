@@ -15,6 +15,26 @@
 export const UTP_BASE_URL =
   (import.meta.env.VITE_UTP_BASE_URL as string | undefined) ?? "http://localhost:8000";
 
+/**
+ * Optional bearer token for cross-origin calls to UTP. Phase A bootstrap:
+ * a long-lived API key set via VITE_UTP_API_KEY. Phase A.4 replaces this
+ * with a proper JWT issued by UTP after the user authenticates with
+ * manus.im OAuth on ikigai-trade-os. Until that lands, set the env var
+ * to a shared secret that UTP's AuthMiddleware accepts.
+ */
+const UTP_API_KEY = (import.meta.env.VITE_UTP_API_KEY as string | undefined) ?? "";
+
+function utpHeaders(extra?: Record<string, string>): HeadersInit {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...(extra ?? {}),
+  };
+  if (UTP_API_KEY) {
+    headers.Authorization = `Bearer ${UTP_API_KEY}`;
+  }
+  return headers;
+}
+
 export class UtpApiError extends Error {
   status: number;
   body: string;
@@ -27,13 +47,16 @@ export class UtpApiError extends Error {
 
 /**
  * GET a JSON resource from UTP. Throws UtpApiError on non-2xx.
+ *
+ * Uses JWT bearer auth (Authorization header), NOT cookies. UTP's CORS
+ * config has allow_credentials=False so cookies will not be sent
+ * cross-origin even if the browser has them.
  */
 export async function utpGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const url = `${UTP_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, {
     method: "GET",
-    headers: { Accept: "application/json" },
-    credentials: "include",
+    headers: utpHeaders(),
     signal,
   });
   if (!res.ok) {
@@ -54,11 +77,7 @@ export async function utpPost<T>(
   const url = `${UTP_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    credentials: "include",
+    headers: utpHeaders({ "Content-Type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
@@ -80,11 +99,7 @@ export async function utpPatch<T>(
   const url = `${UTP_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    credentials: "include",
+    headers: utpHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
     signal,
   });

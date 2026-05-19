@@ -16,21 +16,49 @@ export const UTP_BASE_URL =
   (import.meta.env.VITE_UTP_BASE_URL as string | undefined) ?? "http://localhost:8000";
 
 /**
- * Optional bearer token for cross-origin calls to UTP. Phase A bootstrap:
- * a long-lived API key set via VITE_UTP_API_KEY. Phase A.4 replaces this
- * with a proper JWT issued by UTP after the user authenticates with
- * manus.im OAuth on ikigai-trade-os. Until that lands, set the env var
- * to a shared secret that UTP's AuthMiddleware accepts.
+ * Static fallback bearer token. Used in two cases:
+ *   - Dev: leave VITE_UTP_API_KEY empty; UTP runs with REQUIRE_AUTH=false
+ *     and calls go out unauthenticated.
+ *   - Headless / CI: set VITE_UTP_API_KEY to a long-lived token so Playwright
+ *     can hit UTP without a login flow.
+ *
+ * In production, UtpAuthContext registers a dynamic getter (see
+ * registerUtpTokenGetter) that returns the user's current session token
+ * minted by POST /api/auth/login. The dynamic token takes precedence over
+ * this env var.
  */
 const UTP_API_KEY = (import.meta.env.VITE_UTP_API_KEY as string | undefined) ?? "";
+
+// Framework-agnostic token provider. UtpAuthContext registers a getter on
+// mount; tests can register a static getter. Default returns null so the
+// env-var fallback is used.
+let dynamicTokenGetter: () => string | null = () => null;
+
+export function registerUtpTokenGetter(getter: () => string | null): void {
+  dynamicTokenGetter = getter;
+}
+
+function currentToken(): string {
+  return dynamicTokenGetter() || UTP_API_KEY;
+}
+
+// Hook for AuthContext to subscribe to 401 events from fetch wrappers.
+// AuthContext registers a listener via registerUtpUnauthorizedListener and
+// flips its isAuthRequired flag, which pops the login gate.
+let unauthorizedListener: () => void = () => {};
+
+export function registerUtpUnauthorizedListener(listener: () => void): void {
+  unauthorizedListener = listener;
+}
 
 function utpHeaders(extra?: Record<string, string>): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...(extra ?? {}),
   };
-  if (UTP_API_KEY) {
-    headers.Authorization = `Bearer ${UTP_API_KEY}`;
+  const token = currentToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
   return headers;
 }
@@ -60,6 +88,7 @@ export async function utpGet<T>(path: string, signal?: AbortSignal): Promise<T> 
     signal,
   });
   if (!res.ok) {
+    if (res.status === 401) unauthorizedListener();
     const body = await res.text();
     throw new UtpApiError(res.status, body, `UTP GET ${path} failed: ${res.status}`);
   }
@@ -82,6 +111,11 @@ export async function utpPost<T>(
     signal,
   });
   if (!res.ok) {
+    // /api/auth/login is the one POST that should NOT trip the login gate
+    // on 401 -- 401 there means "wrong password", not "session expired".
+    if (res.status === 401 && !path.startsWith("/api/auth/login")) {
+      unauthorizedListener();
+    }
     const text = await res.text();
     throw new UtpApiError(res.status, text, `UTP POST ${path} failed: ${res.status}`);
   }
@@ -104,6 +138,7 @@ export async function utpPatch<T>(
     signal,
   });
   if (!res.ok) {
+    if (res.status === 401) unauthorizedListener();
     const text = await res.text();
     throw new UtpApiError(res.status, text, `UTP PATCH ${path} failed: ${res.status}`);
   }

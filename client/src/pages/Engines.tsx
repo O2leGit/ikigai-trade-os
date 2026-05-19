@@ -10,12 +10,14 @@
  */
 
 import { Link } from "wouter";
-import { ArrowLeft, Power, PauseCircle, PlayCircle, RefreshCw, Activity } from "lucide-react";
+import { ArrowLeft, Power, PauseCircle, PlayCircle, RefreshCw, Activity, LogOut } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import UtpLoginGate from "@/components/UtpLoginGate";
+import { useUtpAuth } from "@/contexts/UtpAuthContext";
 
 import {
   TrafficLight,
@@ -181,8 +183,9 @@ function EngineRow({ engine }: { engine: EngineStatus }) {
   );
 }
 
-export default function Engines() {
+function EnginesContent() {
   const enginesQuery = useUtpEngines();
+  const auth = useUtpAuth();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -207,6 +210,17 @@ export default function Engines() {
               <RefreshCw className={`h-3 w-3 mr-1 ${enginesQuery.isFetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
+            {auth.isAuthenticated && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => auth.logout()}
+                data-testid="utp-logout"
+              >
+                <LogOut className="h-3 w-3 mr-1" />
+                {auth.user ?? "logout"}
+              </Button>
+            )}
           </div>
         </header>
 
@@ -254,5 +268,13 @@ export default function Engines() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Engines() {
+  return (
+    <UtpLoginGate>
+      <EnginesContent />
+    </UtpLoginGate>
   );
 }

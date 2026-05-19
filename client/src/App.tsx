@@ -11,6 +11,7 @@ import Admin from "./pages/Admin";
 import Upload from "./pages/Upload";
 import Connections from "./pages/Connections";
 import ReportArchive from "./pages/ReportArchive";
+import Engines from "./pages/Engines";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <Route path={"/admin"} component={Admin} />
       <Route path={"/upload"} component={Upload} />
       <Route path={"/connections"} component={Connections} />
+      <Route path={"/engines"} component={Engines} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

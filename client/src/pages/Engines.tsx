@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import {
   Activity,
   ArrowLeft,
+  CalendarClock,
   CheckCircle2,
   Clock,
   Cpu,
@@ -55,7 +56,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EngineScheduleTable } from "@/components/EngineScheduleTable";
 import { SchwabBadge } from "@/components/SchwabBadge";
+import { SectionHeader } from "@/components/SectionHeader";
 import UtpLoginGate from "@/components/UtpLoginGate";
 import { useUtpAuth } from "@/contexts/UtpAuthContext";
 
@@ -549,6 +552,15 @@ function EnginesContent() {
             </CardContent>
           </Card>
         )}
+
+        <div className="space-y-3 pt-2">
+          <SectionHeader
+            icon={<CalendarClock className="h-4 w-4" />}
+            number="03"
+            title="Engine schedule -- next 10 scheduled jobs"
+          />
+          <EngineScheduleTable />
+        </div>
       </div>
     </div>
   );

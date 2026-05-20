@@ -51,6 +51,7 @@ import { ConvictionBadge } from "@/components/ConvictionBadge";
 import { ImpactBadge } from "@/components/ImpactBadge";
 import { AIChatBox } from "@/components/AIChatBox";
 import { SectionErrorBoundary } from "@/components/ErrorBoundary";
+import { SchwabBadge } from "@/components/SchwabBadge";
 import { useAIChat } from "@/hooks/useAIChat";
 
 
@@ -236,6 +237,7 @@ export default function Home() {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
+            <SchwabBadge />
             <RegimeBadge classification={MARKET_REGIME.classification} size="sm" />
             <Link href="/archive">
               <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded border border-border hover:border-primary/40">

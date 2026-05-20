@@ -107,6 +107,31 @@ export function useToggleEngineEnabled() {
 }
 
 /**
+ * Trigger a one-shot scan on a single engine via POST /api/engines/{name}/scan.
+ *
+ * This is fire-and-forget from the UI perspective -- the backend kicks off the
+ * scan asynchronously and emits events to the HELIOS / events stream. The
+ * mutation only surfaces the synchronous ack (or HTTP error) so the toast can
+ * confirm the request landed.
+ */
+export interface EngineScanResponse {
+  name: string;
+  scheduled?: boolean;
+  message?: string;
+  [k: string]: unknown;
+}
+
+export function useScanEngine() {
+  const qc = useQueryClient();
+  return useMutation<EngineScanResponse, UtpApiError, { name: string }>({
+    mutationFn: ({ name }) => utpPost<EngineScanResponse>(`/api/engines/${name}/scan`),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ENGINES_QUERY_KEY });
+    },
+  });
+}
+
+/**
  * Toggle pause / resume for a single engine. Same optimistic pattern as enable.
  */
 export function useToggleEnginePaused() {

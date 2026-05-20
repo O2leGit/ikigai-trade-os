@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import CommandPalette, { CommandPaletteHint } from "./components/CommandPalette";
+import { KillSwitchBanner } from "./components/KillSwitchConfirm";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AdminProvider } from "./contexts/AdminContext";
 import { UtpAuthProvider, useUtpAuth } from "./contexts/UtpAuthContext";
@@ -50,7 +52,14 @@ function App() {
             <UtpUnauthorizedBridge />
             <TooltipProvider>
               <Toaster />
+              <KillSwitchBanner />
+              <CommandPalette />
               <Router />
+              <div className="pointer-events-none fixed bottom-2 right-3 z-40">
+                <span className="pointer-events-auto">
+                  <CommandPaletteHint />
+                </span>
+              </div>
             </TooltipProvider>
           </UtpAuthProvider>
         </ThemeProvider>

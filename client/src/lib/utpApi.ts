@@ -38,8 +38,25 @@ export function registerUtpTokenGetter(getter: () => string | null): void {
   dynamicTokenGetter = getter;
 }
 
+// Storage keys mirror UtpAuthContext. Duplicated here so this module can read
+// the token even if the AuthContext getter was never registered (lazy-chunk
+// duplication of utpApi can cause this -- the AuthProvider's import and the
+// component's import end up with separate module instances, each with their
+// own dynamicTokenGetter). Reading localStorage directly is a safe fallback
+// because the AuthContext is also writing there as the canonical store.
+const TOKEN_LS_KEY = "utp_session_token";
+
+function lsToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(TOKEN_LS_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function currentToken(): string {
-  return dynamicTokenGetter() || UTP_API_KEY;
+  return dynamicTokenGetter() || lsToken() || UTP_API_KEY;
 }
 
 // Hook for AuthContext to subscribe to 401 events from fetch wrappers.

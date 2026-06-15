@@ -29,12 +29,13 @@
     #   style-src   : 'unsafe-inline' (Tailwind + shadcn chart <style>) + Google Fonts CSS
     #   font-src    : Google Fonts files (gstatic) + data:
     #   img-src     : self/data/blob + any https (news thumbnails)
-    #   connect-src : same-origin /api + the UTP backend origin (prod domain)
+    #   connect-src : same-origin /api + UTP backend + the data APIs the
+    #                 Connections page calls directly from the browser
     #   worker-src  : blob: for mermaid workers
     # NOTE: connect-src assumes the production UTP origin is trading.ikigaios.com
     # (per .env.template). If VITE_UTP_BASE_URL differs in the Netlify build env,
     # add that origin here or UTP calls will be blocked.
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://trading.ikigaios.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; report-uri /api/csp-report; report-to csp-endpoint"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://trading.ikigaios.com https://finnhub.io https://api.twelvedata.com https://api.polygon.io; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; report-uri /api/csp-report; report-to csp-endpoint"
 
 [[redirects]]
   from = "/api/*"

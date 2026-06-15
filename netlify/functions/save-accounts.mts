@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { SaveAccountsBodySchema } from "../../shared/uploadSchema";
 
 // Saves uploaded account positions to Blobs for persistence.
 // Each account is stored individually with its own timestamp.
@@ -11,15 +12,25 @@ export default async function handler(req: Request, _context: Context) {
   }
 
   try {
-    const { accounts } = await req.json();
-    // accounts: Array<{ accountId, fileName, statementDate, nlv, openPnl, positions, uploadedAt }>
-
-    if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
-      return new Response(JSON.stringify({ error: "No accounts provided" }), {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // Validate and bound the payload before any of it reaches Blobs storage.
+    const parsed = SaveAccountsBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid payload" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const { accounts } = parsed.data;
 
     const store = getStore("portfolio");
     const now = new Date().toISOString();

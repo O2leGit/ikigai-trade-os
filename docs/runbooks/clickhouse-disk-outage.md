@@ -74,6 +74,27 @@ done
   blocks under each `*_log` section in a ClickHouse `config.d/*.xml` override.
   That needs a restart, so it is a follow-up, not part of the firefight.
 
+## Production validation (2026-06-15)
+
+This procedure was exercised end-to-end during a real outage on the langfuse
+ClickHouse container (`ikigaios-langfuse-clickhouse`):
+
+- **Actual root cause of the bloat:** ClickHouse's sampling **query profiler**
+  (`query_profiler_real_time_period_ns`, 1 sample/sec) running since container
+  start with no TTL on `system.trace_log` — it accumulated ~3.2 billion rows
+  (~64 GiB) over ~6 weeks and filled the host disk, which crash-looped a
+  co-located Postgres.
+- **Durable fix that stuck:** the runtime `MODIFY TTL` (3-day) is not enough on
+  its own — pair it with `ttl_only_drop_parts = 1` (cheap whole-partition drops
+  instead of row-rewrites), persist the TTL via a `config.d/*.xml` drop-in
+  mounted through compose (survives container recreation), and **disable the
+  profiler at source** (`query_profiler_real_time_period_ns = 0`) so the table
+  stops growing in the first place.
+- **The 50 GiB `max_table_size_to_drop` guard** did not trigger in practice
+  because the table had already been truncated below the threshold by the time
+  the authorized step ran — but keep the override/flag handy; a single 64 GiB
+  `trace_log` will hit it.
+
 ## Sources
 
 - Altinity KB — "System tables ate my disk"

@@ -1,0 +1,45 @@
+name: CI
+
+# Runs the type-check, tests and client build on every PR and on pushes to
+# master. Netlify's deploy preview only runs the client build, so without this
+# `tsc --noEmit` and the vitest suite were never enforced -- which is how a
+# batch of type errors (and a latent runtime crash) previously went unnoticed.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

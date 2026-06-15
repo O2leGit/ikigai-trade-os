@@ -11,6 +11,19 @@
 [functions."trigger-briefing"]
   timeout = 60
 
+# Security headers applied to every response (see Netlify security checklist).
+# CSP is intentionally omitted here: this SPA loads styles/data from several
+# external origins, so a CSP needs to be authored and tested separately to
+# avoid breaking the app. The headers below are safe defaults.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

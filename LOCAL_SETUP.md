@@ -1,77 +1,51 @@
 # IkigaiTradeOS — Local Hosting Setup Guide
 
-This guide walks you through running IkigaiTradeOS entirely on your local machine.
+This guide walks you through running IkigaiTradeOS locally.
+
+## Architecture
+
+IkigaiTradeOS ships as a **Vite/React single-page app** plus a set of
+**Netlify Functions** (in `netlify/functions/`) that back the `/api/*` routes.
+There is no database to run locally — stored data (uploaded account
+statements, generated briefings, analyses) lives in **Netlify Blobs**, and
+market/news data is fetched from public APIs and the external trading
+backend.
+
+```
+ikigai-trade-os/
+├── client/                 ← React frontend (Vite)
+│   ├── src/
+│   │   ├── pages/          ← Home / Archive / Upload / Engines / ...
+│   │   ├── lib/
+│   │   │   ├── briefingData.ts ← Static briefing fallback data
+│   │   │   └── archiveData.ts  ← Historical briefing archive
+│   │   ├── components/         ← Shared UI components
+│   │   └── index.css           ← Global dark theme styles
+│   └── index.html
+├── netlify/functions/      ← Serverless API (/api/* → these functions)
+├── shared/                 ← Types/constants shared across the app
+├── netlify.toml            ← Build, redirects, security headers
+├── LOCAL_SETUP.md          ← This file
+├── LAYOUT_PREFERENCES.md   ← Dashboard layout contract (do not modify)
+└── todo.md                 ← Feature and bug tracking
+```
 
 ---
 
 ## Prerequisites
 
-Install these before starting:
-
 | Tool | Version | Download |
 |---|---|---|
 | Node.js | 20+ (LTS) | https://nodejs.org |
 | pnpm | 10+ | `npm install -g pnpm` |
-| MySQL | 8.0+ | https://dev.mysql.com/downloads/ |
+| Netlify CLI | latest | `npm install -g netlify-cli` |
 
-> **Alternative to local MySQL:** Use a free cloud MySQL. [TiDB Cloud](https://tidbcloud.com) and [PlanetScale](https://planetscale.com) both have free tiers that work with this app.
-
----
-
-## Step 1 — Create the Database
-
-```bash
-# Log into MySQL
-mysql -u root -p
-
-# Create the database
-CREATE DATABASE ikigai_trade_os;
-EXIT;
-```
+The Netlify CLI is what makes `/api/*` (the functions) work locally with the
+same behavior as production.
 
 ---
 
-## Step 2 — Configure Environment Variables
-
-Create a `.env` file in the project root:
-
-```bash
-cp .env.template .env
-```
-
-Then edit `.env` and fill in:
-
-```env
-# REQUIRED — your MySQL connection string
-DATABASE_URL=mysql://root:YOUR_PASSWORD@localhost:3306/ikigai_trade_os
-
-# REQUIRED — random secret for session cookies (32+ chars)
-# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-JWT_SECRET=your-random-secret-here
-
-# OPTIONAL — Manus OAuth (see "Authentication" section below)
-VITE_APP_ID=
-OAUTH_SERVER_URL=https://api.manus.im
-VITE_OAUTH_PORTAL_URL=https://manus.im
-OWNER_OPEN_ID=
-OWNER_NAME=
-
-# OPTIONAL — leave blank if not using Manus LLM/storage APIs
-BUILT_IN_FORGE_API_URL=
-BUILT_IN_FORGE_API_KEY=
-VITE_FRONTEND_FORGE_API_KEY=
-VITE_FRONTEND_FORGE_API_URL=
-
-# OPTIONAL — cosmetic
-VITE_APP_TITLE=IkigaiTradeOS Market Intelligence
-VITE_APP_LOGO=
-VITE_ANALYTICS_ENDPOINT=
-VITE_ANALYTICS_WEBSITE_ID=
-```
-
----
-
-## Step 3 — Install Dependencies
+## Step 1 — Install Dependencies
 
 ```bash
 cd ikigai-trade-os
@@ -80,154 +54,92 @@ pnpm install
 
 ---
 
-## Step 4 — Run Database Migrations
+## Step 2 — Configure Environment Variables
+
+Copy the template and fill in the values you need:
 
 ```bash
-pnpm drizzle-kit generate
-pnpm drizzle-kit migrate
+cp .env.template .env
 ```
 
-This creates all tables: `users`, `account_uploads`, `equity_positions`, `options_positions`, `critical_actions`.
+Only the integrations you actually use need to be configured (e.g. the LLM
+and trading-backend API keys for AI analysis and live data). Anything left
+blank simply disables that feature locally. Keep all secrets server-side —
+only variables prefixed with `VITE_` are exposed to the browser.
 
 ---
 
-## Step 5 — Start the Development Server
+## Step 3 — Start the Dev Server
 
 ```bash
-pnpm dev
+pnpm dev          # runs `netlify dev`
 ```
 
-The app runs at: **http://localhost:3000**
+`netlify dev` serves the Vite frontend and the functions together and proxies
+`/api/*` to `netlify/functions/*`, mirroring production. The app runs at the
+URL the CLI prints (typically **http://localhost:8888**).
 
-Both the frontend (Vite/React) and backend (Express/tRPC) are served from the same port.
-
----
-
-## Step 6 — Open the Dashboard
-
-Navigate to **http://localhost:3000** in your browser.
-
-The dashboard loads immediately with the current briefing data. No login required to view the briefing — authentication is only needed for the Upload Positions page.
+> Frontend-only preview: `pnpm exec vite` serves the SPA on its own, but the
+> `/api/*` calls will fail because no functions are running. Use `netlify dev`
+> for the full app.
 
 ---
 
-## Authentication
-
-The app uses Manus OAuth by default. To use it locally:
-
-1. Register at [manus.im](https://manus.im) and create an OAuth application
-2. Set `VITE_APP_ID` to your app's client ID
-3. Set `OWNER_OPEN_ID` and `OWNER_NAME` to your Manus account details
-
-**To skip authentication entirely (local-only mode):**
-
-Edit `server/routers.ts` and change `protectedProcedure` to `publicProcedure` on the `accounts.uploadCsv` mutation. This removes the login requirement for the CSV upload page.
-
----
-
-## Port
-
-The app runs on **port 3000** by default.
-
-To change the port, set the `PORT` environment variable:
+## Step 4 — Build / Typecheck / Test
 
 ```bash
-PORT=8080 pnpm dev
+pnpm build        # production client build (what Netlify deploys)
+pnpm check        # TypeScript typecheck (tsc --noEmit)
+pnpm test         # vitest
+pnpm format       # prettier
 ```
 
----
-
-## Production Build
-
-To build for production and run the compiled output:
-
-```bash
-pnpm build
-pnpm start
-```
-
-The production server also runs on port 3000 (or `$PORT`).
+Netlify builds the site with `npm run build:client` (see `netlify.toml`) and
+publishes `dist/public`.
 
 ---
 
 ## Updating the Daily Briefing
 
-The briefing data lives in:
+The static fallback briefing data lives in:
+
 ```
 client/src/lib/briefingData.ts
 ```
 
-Each morning, update this file with fresh market data. The structure is documented in:
-```
-(see the ikigai-daily-briefing skill reference files if you have them)
-```
-
-After updating `briefingData.ts`, the Vite dev server hot-reloads automatically — no restart needed.
-
----
-
-## CSV Upload (Local)
-
-The Upload Positions page at **http://localhost:3000/upload** works fully locally.
-
-Drag-and-drop your TOS/TD Ameritrade account statement CSVs into the drop zones. The server parses them and stores positions in your local MySQL database. The Portfolio Review section updates immediately.
+After updating it, the Vite dev server hot-reloads automatically — no restart
+needed.
 
 ---
 
 ## Live Ticker Strip
 
-The ticker strip polls Yahoo Finance via the `/api/trpc/market.tickers` endpoint every 30 seconds. This works without any API key — it uses Yahoo Finance's public quote endpoint.
-
-Tickers tracked: NVDA, PLTR, GDX, SLV, USO, ADBE, ULTA, ORCL, VIX, GOLD
+The ticker strip polls public market data via the `/api/*` functions. This
+works without any API key for the basic quote feed. If all prices show "—",
+the upstream provider is rate-limiting; the strip retries automatically.
 
 ---
 
-## Folder Structure
+## CSV Upload (Local)
 
-```
-ikigai-trade-os/
-├── client/                 ← React frontend (Vite)
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Home.tsx        ← Main dashboard (all 11 sections)
-│   │   │   ├── Archive.tsx     ← Historical briefings
-│   │   │   └── Upload.tsx      ← CSV drag-and-drop upload
-│   │   ├── lib/
-│   │   │   ├── briefingData.ts ← TODAY'S BRIEFING DATA (update daily)
-│   │   │   └── archiveData.ts  ← Historical briefing archive
-│   │   ├── components/         ← Shared UI components
-│   │   └── index.css           ← Global dark theme styles
-│   └── index.html
-├── server/                 ← Express + tRPC backend
-│   ├── routers.ts          ← All tRPC procedures
-│   ├── csvParser.ts        ← TOS CSV parser
-│   ├── accountDb.ts        ← Database helpers for accounts
-│   └── db.ts               ← Core DB helpers
-├── drizzle/
-│   └── schema.ts           ← Database schema (source of truth)
-├── shared/                 ← Types shared between client and server
-├── package.json
-├── LOCAL_SETUP.md          ← This file
-├── LAYOUT_PREFERENCES.md   ← Dashboard layout contract (do not modify)
-└── todo.md                 ← Feature and bug tracking
-```
+The Upload Positions page at **/upload** works locally under `netlify dev`.
+Drag-and-drop your TOS/TD Ameritrade account statement CSVs into the drop
+zones. The `save-accounts` / `get-accounts` functions persist the parsed
+positions to Netlify Blobs, and the Portfolio Review section updates from
+that stored data.
 
 ---
 
 ## Troubleshooting
 
-**"Cannot connect to database"**
-- Verify MySQL is running: `mysql.server start` (macOS) or `sudo systemctl start mysql` (Linux)
-- Check `DATABASE_URL` in `.env` — password and database name must match exactly
-
-**"Port 3000 already in use"**
-- Kill the process: `lsof -ti:3000 | xargs kill -9`
-- Or use a different port: `PORT=3001 pnpm dev`
+**`/api/*` calls return 404 locally**
+- You're probably running plain `vite` instead of `netlify dev`. Use `pnpm dev`.
 
 **Ticker strip shows "—" for all prices**
-- Yahoo Finance rate-limits aggressive polling. Wait 60 seconds and refresh.
-- The strip retries automatically every 30 seconds.
+- The upstream quote provider rate-limits aggressive polling. Wait ~60s and
+  refresh; the strip retries on its own.
 
 **CSV upload fails to parse**
-- Ensure the file is a TOS/TD Ameritrade account statement export (not a trade history or tax document)
-- The file must be named `*-AccountStatement-{ID}.csv` or the account ID must be selected manually in the drop zone
+- Ensure the file is a TOS/TD Ameritrade account statement export (not a
+  trade history or tax document), or select the account ID manually in the
+  drop zone.

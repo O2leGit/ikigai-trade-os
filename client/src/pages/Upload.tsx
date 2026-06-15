@@ -22,6 +22,7 @@ import {
   Award,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useUtpAuth } from "@/contexts/UtpAuthContext";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CSV PARSER (client-side)
@@ -316,6 +317,9 @@ export default function UploadPage() {
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [analyzeProgress, setAnalyzeProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // UTP session bearer -- sent to /api/save-accounts so the function can verify
+  // the caller has a valid session before writing to Blobs.
+  const { token } = useUtpAuth();
 
   const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(null);
   const [loadingPrevious, setLoadingPrevious] = useState(true);
@@ -428,7 +432,10 @@ export default function UploadPage() {
         }));
         await fetch("/api/save-accounts", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ accounts: savePayload }),
         });
         // Update stored accounts with the newly saved ones

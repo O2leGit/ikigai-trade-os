@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -10,13 +10,29 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AdminProvider } from "./contexts/AdminContext";
 import { UtpAuthProvider, useUtpAuth } from "./contexts/UtpAuthContext";
 import { registerUtpUnauthorizedListener } from "./lib/utpApi";
-import Home from "./pages/Home";
-import Archive from "./pages/Archive";
-import Admin from "./pages/Admin";
-import Upload from "./pages/Upload";
-import Connections from "./pages/Connections";
-import ReportArchive from "./pages/ReportArchive";
-import Engines from "./pages/Engines";
+
+// Pages are lazy-loaded so each route ships in its own chunk and the initial
+// bundle stays small (the dashboard page alone is large). NotFound is eager
+// since it's the Switch fallback.
+const Home = lazy(() => import("./pages/Home"));
+const Archive = lazy(() => import("./pages/Archive"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Upload = lazy(() => import("./pages/Upload"));
+const Connections = lazy(() => import("./pages/Connections"));
+const ReportArchive = lazy(() => import("./pages/ReportArchive"));
+const Engines = lazy(() => import("./pages/Engines"));
+
+/** Lightweight fallback shown while a route chunk loads. */
+function PageLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex items-center gap-3 text-muted-foreground">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <span className="text-sm font-mono">Loading…</span>
+      </div>
+    </div>
+  );
+}
 
 /** Bridge component: hooks up the UTP 401 listener to AuthContext. */
 function UtpUnauthorizedBridge() {
@@ -54,7 +70,9 @@ function App() {
               <Toaster />
               <KillSwitchBanner />
               <CommandPalette />
-              <Router />
+              <Suspense fallback={<PageLoading />}>
+                <Router />
+              </Suspense>
               <div className="pointer-events-none fixed bottom-2 right-3 z-40">
                 <span className="pointer-events-auto">
                   <CommandPaletteHint />

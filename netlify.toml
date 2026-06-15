@@ -11,6 +11,25 @@
 [functions."trigger-briefing"]
   timeout = 60
 
+# Security headers applied to every response (see Netlify security checklist).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    # Enforced CSP: only directives that cannot break normal SPA resource
+    # loading are enforced here (no default-/script-/style-/connect-src), so
+    # this is safe to ship without a full browser test. Adds base-tag,
+    # form-hijack, clickjacking and plugin/embed (object/embed) protection.
+    Content-Security-Policy = "base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+    # Report-Only: the intended stricter fetch policy. Non-blocking -- browsers
+    # surface violations (devtools) so it can be tuned, then promoted into the
+    # enforced header above. connect-src lists the UTP backend origin.
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://trading.ikigaios.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

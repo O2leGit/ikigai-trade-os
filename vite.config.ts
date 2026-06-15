@@ -20,6 +20,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Split heavy, independently-cacheable rendering libraries into their
+        // own vendor chunks so app-code changes don't bust their cache.
+        // Deliberately scoped to leaf libraries (charts, mermaid) and NOT
+        // React/core, to avoid manualChunks init-order pitfalls.
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("recharts") || id.includes("/d3-")) return "vendor-charts";
+            if (id.includes("mermaid")) return "vendor-mermaid";
+          }
+        },
+      },
+    },
   },
   server: {
     host: true,

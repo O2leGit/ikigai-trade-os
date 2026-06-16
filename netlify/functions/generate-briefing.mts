@@ -1,5 +1,6 @@
 import type { Config, Context } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { quoteLine, stock, type SymbolSpec } from "../../shared/marketProviders";
 
 const SYSTEM_PROMPT = `You are the chief market strategist at a top-tier options-focused hedge fund writing the morning intelligence brief. Portfolio managers trade off your analysis. You are brutally direct, numerically precise, and never hedge or equivocate. You interpret everything through the lens of an options trader who sells premium for a living.
 
@@ -84,61 +85,37 @@ Your output must be valid JSON matching this exact structure (no markdown, no co
 
 Be specific with numbers, levels, and tickers. Use real market analysis — no generic filler. Write for an experienced options trader who needs actionable intelligence.`;
 
-const YAHOO_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-};
-
-async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=5d&interval=1d`,
-      { headers: YAHOO_HEADERS }
-    );
-    if (!res.ok) return `${name}: HTTP ${res.status}`;
-    const data = await res.json();
-    const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
-    const meta = data.chart?.result?.[0]?.meta;
-    if (!quotes || !meta) return `${name}: No data`;
-    const closes = (quotes.close || []).filter((c: number | null) => c !== null);
-    const lastClose = closes[closes.length - 1];
-    const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
-    const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
-    return `${name}: $${lastClose?.toFixed(2)} (${change}%)`;
-  } catch (err) {
-    return `${name}: ${err instanceof Error ? err.message : "unavailable"}`;
-  }
-}
+// Market data for the prompt comes through the shared multi-provider helper:
+// ETFs resolve via Finnhub/Twelve Data/Polygon (whichever key is set), with
+// Yahoo as the fallback for indices/futures. This avoids the Yahoo-direct calls
+// that are blocked from serverless IPs -- which is what left the AI briefing
+// generated from "HTTP 403" strings (i.e. not up to date).
+const MARKET_SYMBOLS: (SymbolSpec & { label: string })[] = [
+  { yahoo: "^GSPC", label: "S&P 500" },
+  { yahoo: "^VIX", label: "VIX" },
+  { yahoo: "^DJI", label: "Dow Jones" },
+  { yahoo: "^IXIC", label: "Nasdaq" },
+  { yahoo: "CL=F", label: "Crude Oil" },
+  { yahoo: "^TNX", label: "10Y Treasury" },
+  { ...stock("SPY"), label: "SPY ETF" },
+  { ...stock("QQQ"), label: "QQQ ETF" },
+  { ...stock("IWM"), label: "IWM ETF" },
+  { ...stock("DIA"), label: "DIA ETF" },
+  { ...stock("GLD"), label: "Gold ETF" },
+  { ...stock("XLE"), label: "XLE" },
+  { ...stock("XLK"), label: "XLK" },
+  { ...stock("XLF"), label: "XLF" },
+  { ...stock("XLV"), label: "XLV" },
+  { ...stock("XLU"), label: "XLU" },
+  { ...stock("XLY"), label: "XLY" },
+  { ...stock("XLP"), label: "XLP" },
+  { ...stock("XLI"), label: "XLI" },
+  { ...stock("XLB"), label: "XLB" },
+  { ...stock("XLRE"), label: "XLRE" },
+];
 
 async function fetchMarketData(): Promise<string> {
-  const symbols = [
-    { yahoo: "%5EGSPC", name: "S&P 500" },
-    { yahoo: "%5EVIX", name: "VIX" },
-    { yahoo: "%5EDJI", name: "Dow Jones" },
-    { yahoo: "%5EIXIC", name: "Nasdaq" },
-    { yahoo: "CL%3DF", name: "Crude Oil" },
-    { yahoo: "%5ETNX", name: "10Y Treasury" },
-    { yahoo: "SPY", name: "SPY ETF" },
-    { yahoo: "QQQ", name: "QQQ ETF" },
-    { yahoo: "IWM", name: "IWM ETF" },
-    { yahoo: "DIA", name: "DIA ETF" },
-    { yahoo: "GLD", name: "Gold ETF" },
-    { yahoo: "XLE", name: "XLE" },
-    { yahoo: "XLK", name: "XLK" },
-    { yahoo: "XLF", name: "XLF" },
-    { yahoo: "XLV", name: "XLV" },
-    { yahoo: "XLU", name: "XLU" },
-    { yahoo: "XLY", name: "XLY" },
-    { yahoo: "XLP", name: "XLP" },
-    { yahoo: "XLI", name: "XLI" },
-    { yahoo: "XLB", name: "XLB" },
-    { yahoo: "XLRE", name: "XLRE" },
-  ];
-
-  // Fetch all in parallel
-  const results = await Promise.all(
-    symbols.map((s) => fetchYahooSymbol(s.yahoo, s.name))
-  );
-
+  const results = await Promise.all(MARKET_SYMBOLS.map((s) => quoteLine(s)));
   return results.join("\n");
 }
 

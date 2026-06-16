@@ -131,3 +131,16 @@ export function stock(symbol: string, name?: string): SymbolSpec {
     name: name ?? symbol,
   };
 }
+
+/**
+ * Format a quote as a one-line string for AI prompts, e.g.
+ * "S&P 500: $123.45 (+0.67%)" -- or "<label>: unavailable" if every provider
+ * (including Yahoo) failed. Used by the briefing/report/analysis generators so
+ * the model is fed real numbers instead of Yahoo error strings.
+ */
+export async function quoteLine(spec: SymbolSpec & { label: string }): Promise<string> {
+  const q = await fetchQuote(spec);
+  if (!q) return `${spec.label}: unavailable`;
+  const sign = q.changePercent >= 0 ? "+" : "";
+  return `${spec.label}: $${q.price.toFixed(2)} (${sign}${q.changePercent.toFixed(2)}%)`;
+}

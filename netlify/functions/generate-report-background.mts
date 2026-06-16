@@ -1,41 +1,12 @@
 import type { Context } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { quoteLine, stock, type SymbolSpec } from "../../shared/marketProviders";
 
 // Background function: gets 15 minutes timeout, returns 202 immediately.
 // Calls Claude API to generate report content, stores in Netlify Blobs.
-
-const YAHOO_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-};
-
-async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=5d&interval=1d`,
-      { headers: YAHOO_HEADERS }
-    );
-    if (!res.ok) return `${name}: HTTP ${res.status}`;
-    const data = await res.json();
-    const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
-    const meta = data.chart?.result?.[0]?.meta;
-    if (!quotes || !meta) return `${name}: No data`;
-    const closes = (quotes.close || []).filter((c: number | null) => c !== null);
-    const highs = (quotes.high || []).filter((h: number | null) => h !== null);
-    const lows = (quotes.low || []).filter((l: number | null) => l !== null);
-    const volumes = (quotes.volume || []).filter((v: number | null) => v !== null);
-    const lastClose = closes[closes.length - 1];
-    const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
-    const high = highs[highs.length - 1];
-    const low = lows[lows.length - 1];
-    const vol = volumes[volumes.length - 1];
-    const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
-    const fiveDayHigh = highs.length > 0 ? Math.max(...highs).toFixed(2) : "N/A";
-    const fiveDayLow = lows.length > 0 ? Math.min(...lows).toFixed(2) : "N/A";
-    return `${name}: $${lastClose?.toFixed(2)} (${change}%) | H:${high?.toFixed(2)} L:${low?.toFixed(2)} | 5d range: ${fiveDayLow}-${fiveDayHigh} | Vol: ${vol ? (vol / 1e6).toFixed(1) + "M" : "N/A"}`;
-  } catch {
-    return `${name}: unavailable`;
-  }
-}
+// Market data comes through the shared multi-provider helper (Finnhub/Twelve
+// Data/Polygon, Yahoo fallback) so the AI report isn't generated from Yahoo
+// "HTTP 403" strings when Yahoo blocks the serverless IP.
 
 // ── Context-aware edition detection ──
 function getReportEdition(now: Date): { title: string; snapshot: string; context: string } {
@@ -199,28 +170,28 @@ export default async function handler(_req: Request, _context: Context) {
     // Mark as in-progress
     await store.setJSON(`status/${todayKey}`, { status: "generating", startedAt: now.toISOString() });
 
-    // Fetch market data
-    const symbolList = [
+    // Fetch market data (ETFs via providers; indices/futures via Yahoo fallback)
+    const symbolList: (SymbolSpec & { label: string })[] = [
       // Core indices
-      { yahoo: "%5EGSPC", name: "S&P 500" }, { yahoo: "%5EVIX", name: "VIX" },
-      { yahoo: "%5EDJI", name: "Dow" }, { yahoo: "%5EIXIC", name: "Nasdaq" },
-      { yahoo: "SPY", name: "SPY" }, { yahoo: "QQQ", name: "QQQ" },
-      { yahoo: "IWM", name: "IWM (Russell 2000)" }, { yahoo: "DIA", name: "DIA" },
+      { yahoo: "^GSPC", label: "S&P 500" }, { yahoo: "^VIX", label: "VIX" },
+      { yahoo: "^DJI", label: "Dow" }, { yahoo: "^IXIC", label: "Nasdaq" },
+      { ...stock("SPY"), label: "SPY" }, { ...stock("QQQ"), label: "QQQ" },
+      { ...stock("IWM"), label: "IWM (Russell 2000)" }, { ...stock("DIA"), label: "DIA" },
       // All 11 sectors
-      { yahoo: "XLK", name: "XLK (Tech)" }, { yahoo: "XLE", name: "XLE (Energy)" },
-      { yahoo: "XLF", name: "XLF (Financials)" }, { yahoo: "XLV", name: "XLV (Healthcare)" },
-      { yahoo: "XLU", name: "XLU (Utilities)" }, { yahoo: "XLY", name: "XLY (Discretionary)" },
-      { yahoo: "XLP", name: "XLP (Staples)" }, { yahoo: "XLI", name: "XLI (Industrials)" },
-      { yahoo: "XLB", name: "XLB (Materials)" }, { yahoo: "XLRE", name: "XLRE (Real Estate)" },
-      { yahoo: "XLC", name: "XLC (Comms)" },
+      { ...stock("XLK"), label: "XLK (Tech)" }, { ...stock("XLE"), label: "XLE (Energy)" },
+      { ...stock("XLF"), label: "XLF (Financials)" }, { ...stock("XLV"), label: "XLV (Healthcare)" },
+      { ...stock("XLU"), label: "XLU (Utilities)" }, { ...stock("XLY"), label: "XLY (Discretionary)" },
+      { ...stock("XLP"), label: "XLP (Staples)" }, { ...stock("XLI"), label: "XLI (Industrials)" },
+      { ...stock("XLB"), label: "XLB (Materials)" }, { ...stock("XLRE"), label: "XLRE (Real Estate)" },
+      { ...stock("XLC"), label: "XLC (Comms)" },
       // Macro signals
-      { yahoo: "CL%3DF", name: "WTI Crude" }, { yahoo: "%5ETNX", name: "10Y Yield" },
-      { yahoo: "GLD", name: "Gold" }, { yahoo: "TLT", name: "TLT (20Y+ Bonds)" },
-      { yahoo: "BTC-USD", name: "Bitcoin" },
+      { yahoo: "CL=F", label: "WTI Crude" }, { yahoo: "^TNX", label: "10Y Yield" },
+      { ...stock("GLD"), label: "Gold" }, { ...stock("TLT"), label: "TLT (20Y+ Bonds)" },
+      { yahoo: "BTC-USD", label: "Bitcoin", twelvedata: "BTC/USD" },
     ];
 
     console.log("Fetching market data for report...");
-    const marketResults = await Promise.all(symbolList.map(s => fetchYahooSymbol(s.yahoo, s.name)));
+    const marketResults = await Promise.all(symbolList.map(s => quoteLine(s)));
     const marketDataText = marketResults.join("\n");
     console.log("Market data fetched, calling Claude...");
 

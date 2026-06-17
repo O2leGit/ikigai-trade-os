@@ -1,33 +1,11 @@
 import type { Context } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { quoteLine, stock, type SymbolSpec } from "../../shared/marketProviders";
 
 // Background function: returns 202 immediately, gets 15-minute timeout.
-// Takes parsed positions, fetches live market data, calls Claude for institutional-grade analysis.
-
-const YAHOO_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-};
-
-async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=5d&interval=1d`,
-      { headers: YAHOO_HEADERS }
-    );
-    if (!res.ok) return `${name}: HTTP ${res.status}`;
-    const data = await res.json();
-    const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
-    const meta = data.chart?.result?.[0]?.meta;
-    if (!quotes || !meta) return `${name}: No data`;
-    const closes = (quotes.close || []).filter((c: number | null) => c !== null);
-    const lastClose = closes[closes.length - 1];
-    const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
-    const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
-    return `${name}: $${lastClose?.toFixed(2)} (${change}%)`;
-  } catch (err) {
-    return `${name}: unavailable`;
-  }
-}
+// Takes parsed positions, fetches live market data (via the shared multi-
+// provider helper, not Yahoo-direct), calls Claude for institutional-grade
+// analysis.
 
 const SYSTEM_PROMPT = `You are the chief portfolio strategist at a top-tier options-focused hedge fund. You produce institutional-grade portfolio reviews -- the kind Goldman Sachs or Citadel would use internally. You are brutally direct, numerically precise, and never hedge or equivocate.
 
@@ -160,14 +138,18 @@ export default async function handler(req: Request, _context: Context) {
         .map((p: any) => p.underlying || p.symbol)
         .filter((s: string) => s && s.length <= 5 && !s.includes(" "))
     )];
-    // Always fetch core indices + portfolio tickers for current prices
-    const coreSymbols = [
-      { yahoo: "%5EGSPC", name: "S&P 500" },
-      { yahoo: "%5EVIX", name: "VIX" },
+    // Always fetch core indices + portfolio tickers for current prices.
+    // Portfolio tickers are equities -> resolve via the configured providers
+    // (Finnhub etc.); core indices fall back to Yahoo.
+    const coreSymbols: (SymbolSpec & { label: string })[] = [
+      { yahoo: "^GSPC", label: "S&P 500" },
+      { yahoo: "^VIX", label: "VIX" },
     ];
-    const portfolioSymbols = uniqueSymbols.slice(0, 20).map((s: string) => ({ yahoo: s, name: s }));
+    const portfolioSymbols: (SymbolSpec & { label: string })[] = uniqueSymbols
+      .slice(0, 20)
+      .map((s: string) => ({ ...stock(s), label: s }));
     const allSymbols = [...coreSymbols, ...portfolioSymbols];
-    const marketResults = await Promise.all(allSymbols.map(s => fetchYahooSymbol(s.yahoo, s.name)));
+    const marketResults = await Promise.all(allSymbols.map(s => quoteLine(s)));
     const liveQuotes = marketResults.join("\n");
     console.log(`Fetched ${allSymbols.length} live quotes, calling Claude for analysis...`);
 

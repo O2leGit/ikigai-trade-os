@@ -6,9 +6,44 @@ import { SaveAccountsBodySchema } from "../../shared/uploadSchema";
 // Each account is stored individually with its own timestamp.
 // Called by the frontend after CSV parsing, before analysis.
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+// This is a public endpoint, so it authenticates the caller before writing.
+// The frontend already holds a UTP session bearer (HMAC token minted by UTP's
+// POST /api/auth/login); rather than re-implement UTP's token verification, we
+// delegate: call a lightweight auth-gated UTP endpoint with the caller's bearer
+// and trust UTP's verdict (2xx = valid session, 401 = invalid/expired).
+const UTP_BASE_URL = process.env.UTP_BASE_URL ?? "https://trading.ikigaios.com";
+const UTP_VERIFY_PATH = process.env.UTP_VERIFY_PATH ?? "/api/engines";
+// Enforced by default; set REQUIRE_UPLOAD_AUTH=false for local dev (netlify
+// dev), where there is no UTP session to present.
+const REQUIRE_AUTH = process.env.REQUIRE_UPLOAD_AUTH !== "false";
+
+async function hasValidUtpSession(req: Request): Promise<boolean> {
+  const auth = req.headers.get("authorization");
+  if (!auth || !/^Bearer\s+\S/i.test(auth)) return false;
+  try {
+    const res = await fetch(`${UTP_BASE_URL}${UTP_VERIFY_PATH}`, {
+      method: "GET",
+      headers: { Authorization: auth, Accept: "application/json" },
+      signal: AbortSignal.timeout(5000),
+    });
+    return res.ok;
+  } catch {
+    // UTP unreachable / timeout -> fail closed (no write without a confirmed session).
+    return false;
+  }
+}
+
 export default async function handler(req: Request, _context: Context) {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  if (REQUIRE_AUTH && !(await hasValidUtpSession(req))) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {

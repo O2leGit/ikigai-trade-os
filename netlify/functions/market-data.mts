@@ -1,16 +1,22 @@
 import type { Context } from "@netlify/functions";
+import { fetchQuote, type SymbolSpec } from "../../shared/marketProviders";
 
-const SYMBOLS: { symbol: string; asset: string }[] = [
-  { symbol: "^GSPC", asset: "S&P 500 Futures" },
-  { symbol: "^IXIC", asset: "Nasdaq Futures" },
-  { symbol: "^DJI", asset: "Dow Futures" },
-  { symbol: "^VIX", asset: "VIX" },
-  { symbol: "CL=F", asset: "WTI Crude" },
-  { symbol: "^TNX", asset: "10Y Treasury" },
-  { symbol: "GC=F", asset: "Gold" },
-  { symbol: "SI=F", asset: "Silver" },
-  { symbol: "DX-Y.NYB", asset: "US Dollar (DXY)" },
-  { symbol: "BTC-USD", asset: "Bitcoin" },
+// "Market Environment" levels. These are indices/futures/FX/crypto -- only BTC
+// has a confident cross-provider symbol (Twelve Data BTC/USD); the rest have no
+// reliable Finnhub/Twelve Data/Polygon ticker, so they stay Yahoo-only (mapping
+// them to a wrong-but-valid provider symbol would show wrong levels). Add
+// provider symbols here once verified against the live provider.
+const SYMBOLS: (SymbolSpec & { asset: string })[] = [
+  { asset: "S&P 500 Futures", yahoo: "^GSPC" },
+  { asset: "Nasdaq Futures", yahoo: "^IXIC" },
+  { asset: "Dow Futures", yahoo: "^DJI" },
+  { asset: "VIX", yahoo: "^VIX" },
+  { asset: "WTI Crude", yahoo: "CL=F" },
+  { asset: "10Y Treasury", yahoo: "^TNX" },
+  { asset: "Gold", yahoo: "GC=F" },
+  { asset: "Silver", yahoo: "SI=F" },
+  { asset: "US Dollar (DXY)", yahoo: "DX-Y.NYB" },
+  { asset: "Bitcoin", yahoo: "BTC-USD", twelvedata: "BTC/USD" },
 ];
 
 function formatLevel(price: number): string {
@@ -28,31 +34,8 @@ function getDirection(change: number): "up" | "down" | "flat" {
   return "flat";
 }
 
-async function fetchYahooQuote(symbol: string) {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/json",
-      },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta) return null;
-    const price = meta.regularMarketPrice ?? meta.previousClose ?? 0;
-    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
-    const change = price - prevClose;
-    const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
-    return { price, change, changePercent };
-  } catch {
-    return null;
-  }
-}
-
-export default async (req: Request, context: Context) => {
-  const results = await Promise.allSettled(SYMBOLS.map(s => fetchYahooQuote(s.symbol)));
+export default async (_req: Request, _context: Context) => {
+  const results = await Promise.allSettled(SYMBOLS.map((s) => fetchQuote(s)));
   const marketData = results.map((r, i) => {
     const { asset } = SYMBOLS[i];
     if (r.status === "fulfilled" && r.value) {

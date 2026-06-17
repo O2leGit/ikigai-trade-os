@@ -1,37 +1,39 @@
 import type { Context } from "@netlify/functions";
+import { fetchQuote, stock, type SymbolSpec } from "../../shared/marketProviders";
 
-const TICKER_SYMBOLS = ["NVDA", "PLTR", "GDX", "SLV", "USO", "ADBE", "ULTA", "ORCL", "^VIX", "GC=F"];
+// Ticker strip symbols. The 8 equities/ETFs resolve via any configured provider
+// (Finnhub/Twelve Data/Polygon) with Yahoo fallback; ^VIX and gold futures have
+// no confident provider symbol, so they stay Yahoo-only. The output `symbol`
+// keeps the original raw ticker the client expects.
+const TICKERS: SymbolSpec[] = [
+  stock("NVDA"),
+  stock("PLTR"),
+  stock("GDX"),
+  stock("SLV"),
+  stock("USO"),
+  stock("ADBE"),
+  stock("ULTA"),
+  stock("ORCL"),
+  { yahoo: "^VIX", name: "VIX" },
+  { yahoo: "GC=F", name: "Gold" },
+];
 
-async function fetchYahooQuote(symbol: string) {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/json",
-      },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta) return null;
-    const price = meta.regularMarketPrice ?? meta.previousClose ?? 0;
-    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
-    const change = price - prevClose;
-    const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
-    return { symbol, price, change, changePercent, name: meta.shortName ?? meta.symbol ?? symbol };
-  } catch {
-    return null;
-  }
-}
-
-export default async (req: Request, context: Context) => {
-  const results = await Promise.allSettled(TICKER_SYMBOLS.map(sym => fetchYahooQuote(sym)));
-  const tickers = results
-    .map((r, i) => {
-      if (r.status === "fulfilled" && r.value) return r.value;
-      return { symbol: TICKER_SYMBOLS[i], price: 0, change: 0, changePercent: 0, name: TICKER_SYMBOLS[i] };
-    });
+export default async (_req: Request, _context: Context) => {
+  const results = await Promise.allSettled(TICKERS.map((spec) => fetchQuote(spec)));
+  const tickers = results.map((r, i) => {
+    const sym = TICKERS[i].yahoo;
+    if (r.status === "fulfilled" && r.value) {
+      const q = r.value;
+      return {
+        symbol: sym,
+        price: q.price,
+        change: q.change,
+        changePercent: q.changePercent,
+        name: q.name ?? sym,
+      };
+    }
+    return { symbol: sym, price: 0, change: 0, changePercent: 0, name: sym };
+  });
 
   return new Response(JSON.stringify(tickers), {
     headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=30" },

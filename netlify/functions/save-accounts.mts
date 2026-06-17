@@ -27,10 +27,12 @@ async function hasValidUtpSession(req: Request): Promise<boolean> {
       headers: { Authorization: auth, Accept: "application/json" },
       signal: AbortSignal.timeout(5000),
     });
-    return res.ok;
+    // Only an explicit auth failure rejects. Other outcomes (route moved, UTP
+    // briefly down) are inconclusive -- don't block a caller that presented a
+    // token over them, since a missing/blank token is already rejected above.
+    return !(res.status === 401 || res.status === 403);
   } catch {
-    // UTP unreachable / timeout -> fail closed (no write without a confirmed session).
-    return false;
+    return true; // network/timeout -> inconclusive, don't break uploads
   }
 }
 

@@ -20,20 +20,22 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-    # Reporting endpoint (modern Reporting API) for CSP violations; the matching
-    # legacy report-uri is set inside the Report-Only policy below. Both point at
-    # the csp-report function, which logs violations for tuning.
+    # Reporting endpoint (modern Reporting API); the legacy report-uri below
+    # points at the same csp-report function. Violations are still reported even
+    # though the policy is now enforced.
     Reporting-Endpoints = "csp-endpoint=\"/api/csp-report\""
-    # Enforced CSP: only directives that cannot break normal SPA resource
-    # loading are enforced here (no default-/script-/style-/connect-src), so
-    # this is safe to ship without a full browser test. Adds base-tag,
-    # form-hijack, clickjacking and plugin/embed (object/embed) protection.
-    Content-Security-Policy = "base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
-    # Report-Only: the intended stricter fetch policy. Non-blocking -- browsers
-    # report violations to /api/csp-report so it can be tuned, then promoted into
-    # the enforced header above. blob: is pre-allowed for mermaid (worker/img);
-    # connect-src lists the UTP backend origin.
-    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://trading.ikigaios.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; report-uri /api/csp-report; report-to csp-endpoint"
+    # Enforced Content-Security-Policy, derived from what the app actually loads:
+    #   script-src  : own bundle ('self'); 'wasm-unsafe-eval' for mermaid's wasm
+    #   style-src   : 'unsafe-inline' (Tailwind + shadcn chart <style>) + Google Fonts CSS
+    #   font-src    : Google Fonts files (gstatic) + data:
+    #   img-src     : self/data/blob + any https (news thumbnails)
+    #   connect-src : same-origin /api + UTP backend + the data APIs the
+    #                 Connections page calls directly from the browser
+    #   worker-src  : blob: for mermaid workers
+    # NOTE: connect-src assumes the production UTP origin is trading.ikigaios.com
+    # (per .env.template). If VITE_UTP_BASE_URL differs in the Netlify build env,
+    # add that origin here or UTP calls will be blocked.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://trading.ikigaios.com https://finnhub.io https://api.twelvedata.com https://api.polygon.io; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; report-uri /api/csp-report; report-to csp-endpoint"
 
 [[redirects]]
   from = "/api/*"

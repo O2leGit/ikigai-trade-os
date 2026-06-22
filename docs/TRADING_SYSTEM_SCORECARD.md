@@ -17,7 +17,7 @@ a faithful live cockpit) but is currently **not trading and not recording reliab
 - **Zero** order/fill lifecycle events fleet-wide for 10 days across all 20 engines.
 - **11 live broker positions** are unreconciled (exist at the broker, never recorded locally).
 - **Schwab broker token expired ~21 days ago** → 15 of 18 engines cannot trade.
-- **Helios silently reverted from live → paper** (real-money config regression; live keys wiped on the 2026-06-17 rebuild).
+- **Helios silently reverted from live → paper** on the **2026-06-13 12:13 UTC container rebuild**: the live flag was set **in memory only** (via `POST /api/alpaca/mode`, never persisted to `.env`, which always held `ALPACA_PAPER=true`), so the rebuild booted back to paper and the runtime-injected live keys were destroyed with the old container.
 
 None of this surfaced an alert. That is the core failure: the system *looked* green while silently idle.
 
@@ -29,7 +29,7 @@ None of this surfaced an alert. That is the core failure: the system *looked* gr
 |---|-----------|:------:|:-----:|----------------|
 | 1 | Trade Execution & Recording | 20% | **D** | Only 1 engine ever recorded; dark 10d; 0 order/fill events fleet-wide; `strategy_events` table empty |
 | 2 | Broker Connectivity & Readiness | 15% | **D-** | Schwab token dead 21d; Helios live keys wiped → reverted to paper |
-| 3 | Strategy Performance & Backtest-vs-Live | 15% | **D+** | 24 live trades total ever; no live-vs-backtest reconciliation exists; profitability unproven |
+| 3 | Strategy Performance & Backtest-vs-Live | 15% | **D+** | Only 4 genuinely live trades ever (Jun 4–11; 20 prior were paper); no live-vs-backtest reconciliation; profitability unproven |
 | 4 | Portfolio & Risk Management | 15% | **C-** | Kill-switch + circuit breakers good; but 11 orphan positions = portfolio not coherently tracked |
 | 5 | Observability, Alerting & Self-Healing | 15% | **C-** | Pre-open sweep exists but shallow + Discord-only; token expiry never paged; app has no Docker healthcheck |
 | 6 | Dashboard / Cockpit | 10% | **B** | Solid live-polling UI (Helios light, engines, kill-switch, Schwab badge); build verification pending |
@@ -50,7 +50,7 @@ None of this surfaced an alert. That is the core failure: the system *looked* gr
 - **To A+:** (a) **[USER]** re-auth Schwab OAuth; (b) **[USER]** re-supply live Alpaca keys; (c) persist keys in a secret store (Vault) so a rebuild can't wipe them; (d) deep token-readiness check that pages Telegram ≥48h before expiry.
 
 ### 3. Strategy Performance & Backtest-vs-Live — **D+**
-- **Evidence:** Only 24 live trades exist; no backtest-vs-live tracking-error monitor in place.
+- **Evidence:** Only **4 genuinely live trades** ever (SPY/XLI, Jun 4–11; the 20 prior were paper); the live mode was set in-memory only and lost on the Jun 13 container rebuild. No backtest-vs-live tracking-error monitor in place.
 - **Gap:** Profitability is unproven; no overfitting / deflated-Sharpe guardrails; live degradation invisible.
 - **To A+:** stand up a backtest-vs-live reconciliation report per engine (expected vs realized Sharpe/win-rate/slippage), with a promotion gate before any engine moves observe→suggest→act. (See research brief, folded in below when complete.)
 

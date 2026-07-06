@@ -50,7 +50,7 @@ export function useAIChat(portfolioContext?: string) {
           ...prev,
           {
             role: "assistant",
-            content: `**Error:** ${msg}\n\nMake sure ANTHROPIC_API_KEY is set in your Netlify environment variables.`,
+            content: `**Error:** ${msg}\n\nMake sure OPENROUTER_API_KEY is set in your Netlify environment variables.`,
           },
         ]);
       } finally {

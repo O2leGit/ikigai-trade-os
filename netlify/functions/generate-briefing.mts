@@ -1,4 +1,5 @@
 import type { Config, Context } from "@netlify/functions";
+import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
 
 const SYSTEM_PROMPT = `You are the chief market strategist at a top-tier options-focused hedge fund writing the morning intelligence brief. Portfolio managers trade off your analysis. You are brutally direct, numerically precise, and never hedge or equivocate. You interpret everything through the lens of an options trader who sells premium for a living.
@@ -143,9 +144,9 @@ async function fetchMarketData(): Promise<string> {
 }
 
 export default async function handler(_req: Request, _context: Context) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("ANTHROPIC_API_KEY not configured");
+    console.error("OPENROUTER_API_KEY not configured");
     return new Response("Missing API key", { status: 500 });
   }
 
@@ -180,28 +181,20 @@ Analyze this data and generate the full briefing JSON. Requirements:
 - Scenario matrix probabilities must sum to approximately 100%`;
 
     console.log("Calling Claude API...");
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    const response = await anthropicMessagesViaOpenRouter({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 8192,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
+      });
 
     if (!response.ok) {
-      const errText = await response.text();
+      const errText = response.errText ?? "";
       console.error("Claude API error:", response.status, errText);
       return new Response(`Claude API error: ${response.status}`, { status: 502 });
     }
 
-    const result = await response.json();
+    const result = response;
     const content = result.content?.[0]?.text;
     if (!content) {
       return new Response("No content from Claude", { status: 502 });

@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions";
+import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
 
 // Background function: returns 202 immediately, gets 15-minute timeout.
@@ -83,9 +84,9 @@ Output ONLY valid JSON (no markdown fences) with these keys:
 CRITICAL: Keep rationale/actionDetail/riskNote fields SHORT (max 20 words each). You MUST output complete, valid JSON -- do not truncate. Close all brackets and braces.`;
 
 export default async function handler(req: Request, _context: Context) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("ANTHROPIC_API_KEY not set");
+    console.error("OPENROUTER_API_KEY not set");
     return;
   }
 
@@ -199,14 +200,7 @@ export default async function handler(req: Request, _context: Context) {
       timeZone: "America/Chicago",
     });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    const response = await anthropicMessagesViaOpenRouter({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 16000,
         system: SYSTEM_PROMPT,
@@ -227,17 +221,16 @@ ${marketData}
 
 Review every position line-by-line. Flag critical items. Generate opportunity tiers. Output ONLY valid JSON.`,
         }],
-      }),
-    });
+      });
 
     if (!response.ok) {
-      const errText = await response.text();
+      const errText = response.errText ?? "";
       console.error("Claude API error:", response.status, errText);
       await store.setJSON("analysis-status", { status: "error", error: `Claude API ${response.status}`, at: now.toISOString() });
       return;
     }
 
-    const result = await response.json();
+    const result = response;
     const content = result.content?.[0]?.text;
     if (!content) {
       console.error("No content from Claude");

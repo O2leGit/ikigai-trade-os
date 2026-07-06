@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions";
+import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
 
 // Background function: returns 202 immediately, gets 15-minute timeout.
@@ -117,9 +118,9 @@ ANALYSIS RULES:
 Output ONLY valid JSON (no markdown fences). Include these top-level keys: generatedAt, briefingDate, briefingEdition, aiSummary (with generatedAt + sections array following the format above), keyLevels (array of 4 objects with symbol/name/price/change/direction/support/resistance/trend), fearGauge (vix/vixChange/vixTrend/putCallRatio/putCallSignal/ivRank/fearLevel), overnightDevelopments (array), crisisStatus (object), marketRegime (object with classification/description/bestStrategies), executiveView (string paragraph), tradingIdeas (object with dayTrades/swingTrades/hedges arrays -- each trade object MUST have: ticker, direction "LONG"/"SHORT", horizon "Intraday"/"2-5 days"/"2-4 weeks", thesis, trade string with exact strikes/DTE/credit, entry, target, stop, sizing, conviction "HIGH"/"MEDIUM"/"LOW", rr), scenarioMatrix (array), decisionSummary (object with bestOpportunityToday/bestSwingIdeaThisWeek/biggestRiskToWatch strings), sectorRotation (array), macroConditions (array), earningsPlays (array of 3-5 objects with ticker/company/reportDate/reportTime/setup/conviction/trade/bullCase/bearCase/keyLevels/expectedMove).`;
 
 export default async function handler(_req: Request, _context: Context) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("ANTHROPIC_API_KEY not set");
+    console.error("OPENROUTER_API_KEY not set");
     return;
   }
 
@@ -173,14 +174,7 @@ export default async function handler(_req: Request, _context: Context) {
       timeZone: "America/Chicago",
     });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    const response = await anthropicMessagesViaOpenRouter({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 7000,
         system: SYSTEM_PROMPT,
@@ -188,17 +182,16 @@ export default async function handler(_req: Request, _context: Context) {
           role: "user",
           content: `Generate the ${edition} for ${dateStr} at ${timeStr} CT.\n\nEDITION CONTEXT: ${editionContext}\n\nSet briefingEdition to "${edition}" and briefingDate to "${dateStr}".\n\nMarket data:\n${marketData}\n\nOutput ONLY valid JSON.`,
         }],
-      }),
-    });
+      });
 
     if (!response.ok) {
-      const errText = await response.text();
+      const errText = response.errText ?? "";
       console.error("Claude API error:", response.status, errText);
       await store.setJSON("briefing-status", { status: "error", error: `Claude API ${response.status}`, at: now.toISOString() });
       return;
     }
 
-    const result = await response.json();
+    const result = response;
     const content = result.content?.[0]?.text;
     if (!content) {
       console.error("No content from Claude");

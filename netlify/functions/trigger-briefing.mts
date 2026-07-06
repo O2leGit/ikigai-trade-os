@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions";
+import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
 
 const YAHOO_HEADERS = {
@@ -46,9 +47,9 @@ export default async function handler(req: Request, _context: Context) {
   };
 
   // Step 1: Check API key
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not set" }), { status: 500, headers });
+    return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY not set" }), { status: 500, headers });
   }
 
   try {
@@ -77,14 +78,7 @@ export default async function handler(req: Request, _context: Context) {
       timeZone: "America/Chicago",
     });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    const response = await anthropicMessagesViaOpenRouter({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 6000,
         system: SYSTEM_PROMPT,
@@ -92,15 +86,14 @@ export default async function handler(req: Request, _context: Context) {
           role: "user",
           content: `Generate today's briefing for ${dateStr}.\n\nMarket data:\n${marketData}\n\nOutput ONLY valid JSON.`,
         }],
-      }),
-    });
+      });
 
     if (!response.ok) {
-      const errText = await response.text();
+      const errText = response.errText ?? "";
       return new Response(JSON.stringify({ error: "Claude API error", status: response.status, detail: errText }), { status: 502, headers });
     }
 
-    const result = await response.json();
+    const result = response;
     const content = result.content?.[0]?.text;
     if (!content) {
       return new Response(JSON.stringify({ error: "No content from Claude" }), { status: 502, headers });

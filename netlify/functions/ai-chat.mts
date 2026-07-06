@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions";
+import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 
 const SYSTEM_PROMPT = `You are an expert options trading AI assistant for IkigaiTradeOS, a market intelligence platform. You have deep knowledge of:
 - Options strategies (spreads, iron condors, strangles, covered calls, protective puts)
@@ -44,10 +45,10 @@ export default async function handler(req: Request, _context: Context) {
     });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return new Response(
-      JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
+      JSON.stringify({ error: "OPENROUTER_API_KEY not configured" }),
       { status: 500, headers }
     );
   }
@@ -77,34 +78,25 @@ export default async function handler(req: Request, _context: Context) {
       .filter((m) => m.role !== "system")
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
-        system: systemContent,
-        messages: claudeMessages,
-      }),
+    const response = await anthropicMessagesViaOpenRouter({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 4096,
+      system: systemContent,
+      messages: claudeMessages,
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error("Claude API error:", response.status, errText);
+      console.error("LLM API error:", response.status, response.errText);
       return new Response(
         JSON.stringify({
-          error: `Claude API error: ${response.status}`,
-          detail: errText,
+          error: `LLM API error: ${response.status}`,
+          detail: response.errText,
         }),
         { status: 502, headers }
       );
     }
 
-    const result = await response.json();
+    const result = response;
     const assistantContent =
       result.content?.[0]?.text || "No response generated.";
 

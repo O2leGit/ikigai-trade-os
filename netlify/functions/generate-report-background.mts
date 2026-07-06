@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions";
+import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
 import { quoteLine, stock, type SymbolSpec } from "../../shared/marketProviders";
 
@@ -156,9 +157,9 @@ Output ONLY valid JSON matching this schema:
 REQUIREMENTS: 5-6 trade ideas (mix of stock and options trades with exact strikes), 11 sectors minimum, 12+ key levels, 3-4 subsections in What Happened, 3 subsections in Tomorrow Preview. Every claim must cite a number. Be opinionated and take a clear directional stance.`;
 
 export default async function handler(_req: Request, _context: Context) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("ANTHROPIC_API_KEY not set");
+    console.error("OPENROUTER_API_KEY not set");
     return;
   }
 
@@ -199,29 +200,21 @@ export default async function handler(_req: Request, _context: Context) {
       weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "America/Chicago",
     });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    const response = await anthropicMessagesViaOpenRouter({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 12000,
         system: REPORT_SYSTEM_PROMPT,
         messages: [{ role: "user", content: `Generate the market report for ${dateStr}.\n\nREPORT TITLE: ${getReportEdition(now).title}\nSNAPSHOT TIME: ${getReportEdition(now).snapshot}\nCONTEXT: ${getReportEdition(now).context}\n\nMarket data:\n${marketDataText}\n\nUse the EXACT title and snapshot time provided above. Output ONLY valid JSON.` }],
-      }),
-    });
+      });
 
     if (!response.ok) {
-      const errText = await response.text();
+      const errText = response.errText ?? "";
       console.error("Claude API error:", response.status, errText);
       await store.setJSON(`status/${todayKey}`, { status: "error", error: `Claude API ${response.status}`, at: now.toISOString() });
       return;
     }
 
-    const result = await response.json();
+    const result = response;
     const content = result.content?.[0]?.text;
     if (!content) {
       console.error("No content from Claude");

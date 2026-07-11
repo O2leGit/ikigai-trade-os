@@ -51,6 +51,14 @@ try {
 }
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
+// OneDrive renders the toolbar "Download" control as a menuitem in some UI
+// versions and a button in others — accept either.
+const downloadCtl = () =>
+  page
+    .getByRole('menuitem', { name: /download/i })
+    .or(page.getByRole('button', { name: /download/i }))
+    .first();
+
 try {
   await page.goto(SHARE_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 
@@ -58,7 +66,7 @@ try {
     console.log('Sign in as chris@cotoole.com in the browser window (including MFA).');
     console.log('Waiting up to 10 minutes for the PalletOneShare folder to load...');
     await page.waitForURL(/universalforestproducts-my\.sharepoint\.com/, { timeout: 600_000 });
-    await page.getByRole('button', { name: /download/i }).first().waitFor({ timeout: 600_000 });
+    await downloadCtl().waitFor({ timeout: 600_000 });
     log('LOGIN OK - session saved to browser profile');
     console.log('Login captured. Scheduled runs are now authenticated.');
     await ctx.close();
@@ -73,22 +81,21 @@ try {
     process.exit(2);
   }
 
-  const downloadBtn = page.getByRole('button', { name: /^download$/i }).first();
-  await downloadBtn.waitFor({ timeout: 60_000 });
+  await downloadCtl().waitFor({ timeout: 60_000 });
 
   // Server-side zipping of the folder can take a while on the first click.
   let download;
   try {
     [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
-      downloadBtn.click(),
+      downloadCtl().click(),
     ]);
   } catch {
     // Toolbar Download sometimes needs an explicit selection: select all, retry.
     await page.keyboard.press('Control+a');
     [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 240_000 }),
-      page.getByRole('button', { name: /^download$/i }).first().click(),
+      downloadCtl().click(),
     ]);
   }
 

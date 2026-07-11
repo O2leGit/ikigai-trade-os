@@ -37,6 +37,9 @@ export interface SectorItem {
   ticker: string;
   price: number;
   changePercent: number;
+  /** Formatted 1-day change (e.g. "+1.2%"). */
+  dayChange?: string;
+  /** @deprecated same value as dayChange -- the API never returned true YTD. */
   ytd: string;
   status: "LEADING" | "NEUTRAL" | "LAGGING";
   note?: string;

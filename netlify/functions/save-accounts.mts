@@ -18,21 +18,25 @@ const UTP_VERIFY_PATH = process.env.UTP_VERIFY_PATH ?? "/api/engines";
 // dev), where there is no UTP session to present.
 const REQUIRE_AUTH = process.env.REQUIRE_UPLOAD_AUTH !== "false";
 
-async function hasValidUtpSession(req: Request): Promise<boolean> {
+type UtpVerify = "valid" | "invalid" | "unavailable";
+
+async function verifyUtpSession(req: Request): Promise<UtpVerify> {
   const auth = req.headers.get("authorization");
-  if (!auth || !/^Bearer\s+\S/i.test(auth)) return false;
+  if (!auth || !/^Bearer\s+\S/i.test(auth)) return "invalid";
   try {
     const res = await fetch(`${UTP_BASE_URL}${UTP_VERIFY_PATH}`, {
       method: "GET",
       headers: { Authorization: auth, Accept: "application/json" },
       signal: AbortSignal.timeout(5000),
     });
-    // Only an explicit auth failure rejects. Other outcomes (route moved, UTP
-    // briefly down) are inconclusive -- don't block a caller that presented a
-    // token over them, since a missing/blank token is already rejected above.
-    return !(res.status === 401 || res.status === 403);
+    if (res.status === 401 || res.status === 403) return "invalid";
+    if (res.ok) return "valid";
+    // Route moved / UTP erroring: can't confirm the token. Fail closed --
+    // this is a public write endpoint; the old fail-open behavior accepted
+    // any bearer whenever UTP was down.
+    return "unavailable";
   } catch {
-    return true; // network/timeout -> inconclusive, don't break uploads
+    return "unavailable";
   }
 }
 
@@ -41,11 +45,20 @@ export default async function handler(req: Request, _context: Context) {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  if (REQUIRE_AUTH && !(await hasValidUtpSession(req))) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (REQUIRE_AUTH) {
+    const verdict = await verifyUtpSession(req);
+    if (verdict === "invalid") {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (verdict === "unavailable") {
+      return new Response(
+        JSON.stringify({ error: "Auth verification unavailable (UTP unreachable) -- try again shortly" }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
   }
 
   try {

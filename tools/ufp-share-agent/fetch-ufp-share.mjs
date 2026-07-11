@@ -33,11 +33,22 @@ const loginMode = process.argv.includes('--login');
 fs.mkdirSync(BASE, { recursive: true });
 const log = (m) => fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${m}\n`);
 
-const ctx = await chromium.launchPersistentContext(PROFILE, {
+// Microsoft's login page frequently refuses to complete sign-in inside bare
+// automation Chromium (endless login loop / password-reset bounce). Launch the
+// real installed Edge instead and strip the automation markers.
+const launchOpts = {
   headless: !loginMode,
   acceptDownloads: true,
   viewport: { width: 1400, height: 900 },
-});
+  ignoreDefaultArgs: ['--enable-automation'],
+  args: ['--disable-blink-features=AutomationControlled'],
+};
+let ctx;
+try {
+  ctx = await chromium.launchPersistentContext(PROFILE, { ...launchOpts, channel: 'msedge' });
+} catch {
+  ctx = await chromium.launchPersistentContext(PROFILE, launchOpts); // fallback: bundled Chromium
+}
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
 try {
@@ -45,9 +56,9 @@ try {
 
   if (loginMode) {
     console.log('Sign in as chris@cotoole.com in the browser window (including MFA).');
-    console.log('Waiting up to 5 minutes for the PalletOneShare folder to load...');
-    await page.waitForURL(/universalforestproducts-my\.sharepoint\.com/, { timeout: 300_000 });
-    await page.getByRole('button', { name: /download/i }).first().waitFor({ timeout: 300_000 });
+    console.log('Waiting up to 10 minutes for the PalletOneShare folder to load...');
+    await page.waitForURL(/universalforestproducts-my\.sharepoint\.com/, { timeout: 600_000 });
+    await page.getByRole('button', { name: /download/i }).first().waitFor({ timeout: 600_000 });
     log('LOGIN OK - session saved to browser profile');
     console.log('Login captured. Scheduled runs are now authenticated.');
     await ctx.close();

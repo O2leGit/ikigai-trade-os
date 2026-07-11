@@ -3,6 +3,13 @@
 > Produced 2026-07-11 from a full deep-dive of `ikigai-trade-os`, `ikigaitrade-engine`,
 > and `ikigaios-jarvis-core` (axe-supervisor), plus the live Jarvis/VPS state and the
 > Crown Macro Letter inbox. Phase 1 is implemented in the PR that carries this document.
+>
+> **2026-07-11 direction from Sir: Alpaca-first.** Agentic trading runs on Alpaca
+> (AXE); once proven out, more capital moves from Schwab to Alpaca. Schwab is a
+> funding source, not an execution priority (its connections have been unreliable);
+> the IBKR engine phases below are kept for reference but are NOT the critical path.
+> The proving ground is AXE's paper daemon → readiness grade → staged live-arm.
+> AXE hot-path fixes shipped in `ikigaios-jarvis-core` PR #15.
 
 ## Executive summary
 
@@ -58,9 +65,25 @@ is a fourth codebase not present in any studied repo.
 
 ---
 
+## Phase priority under Alpaca-first
+
+1. ~~Phase 0 (IBKR safety)~~ → **only if/while the IBKR engine keeps trading live**;
+   if U24381579 automation is paused, these become do-before-reactivating items.
+2. **Phase 1 (real AI inputs)** — ✅ shipped (this PR).
+3. **Phase 3 (AXE)** — ✅ hot-path fixes shipped (`ikigaios-jarvis-core` PR #15:
+   guarded broker + KillSwitchV2 on every submit, calibrated quarter-Kelly sizing,
+   full sector-ETF watchlist, meta-label columns filled, tick ImportError fixed,
+   systemd unit). Remaining: PEAD earnings/SUE feed, intraday-ORB bridge,
+   backtests.jsonl for the readiness grade.
+4. **Phase 4 (strategy/allocation)** — the proving loop: paper fills → attribution →
+   readiness grade A/A+ × 14 days → staged live-arm on Alpaca → move capital.
+5. Phase 2 (IBKR learning loops) — deferred with Phase 0.
+
 ## Phase 0 — Safety first (live-money holes; IBKR engine; ~1 day)
 
-These precede everything: an unprotected spread is the fastest path to a large realized loss.
+These precede everything **on the IBKR path**: an unprotected spread is the fastest
+path to a large realized loss. Deferred while Alpaca is the focus — but mandatory
+before the IBKR engine's next live entry.
 
 1. **Implement spread close-at-market** — `engine/execution.py:2293` is `# TODO`. Today the
    2:55 PM CT E3 auto-close (`scheduler.py:1229`) and the dashboard CLOSE/ROLL path cancel the

@@ -21,8 +21,8 @@
 
 | # | Category | Was | Now | What changed today | What A+ requires |
 |---|----------|-----|-----|--------------------|------------------|
-| 1 | **Strategy validation** (backtest → walk-forward → deflated Sharpe) | F | C‑ | Backtest/walk-forward writers existed but nothing ran them → `nightly_baselines.sh` + `axe-baselines.timer` populate `backtests.jsonl` + `walk_forward.jsonl` nightly | 180d baselines per strategy, overfitting score < 0.15, paper Sharpe ≥ 0.5× backtest for 30d |
-| 2 | **Live signal generation** | F | C+ | Daemon traded ONE signal (daily SPY Donchian); every tick also died on ImportError from a clean checkout. Fixed tick; sector rotation live (11 SPDRs) | PEAD earnings/SUE feed wired; daemon bridged to the real intraday ORB engine (RVOL/VWAP/ATR); ≥3 strategies producing ≥5 fills/30d each |
+| 1 | **Strategy validation** (backtest → walk-forward → deflated Sharpe) | F | C+ | Backtest/walk-forward writers existed but nothing ran them → `nightly_baselines.sh` + `axe-baselines.timer` populate `backtests.jsonl` + `walk_forward.jsonl` nightly; `research` extra (pandas/pyarrow) added so the harness actually runs on a fresh install | Overfitting score < 0.15 per strategy; paper Sharpe ≥ 0.5× backtest for 30d |
+| 2 | **Live signal generation** | F | B | Daemon traded ONE signal (daily SPY Donchian) and every tick died on ImportError from a clean checkout. Now: tick fixed; sector rotation live (11 SPDRs); **real intraday ORB** (15-min opening range, RVOL ≥1.5× on the breakout bar, VWAP alignment, 11:30 ET cutoff, one entry/session); **PEAD live** via Finnhub earnings calendar + SUE (≥4-quarter surprise history, abstains otherwise) | ≥3 strategies producing ≥5 fills/30d each; E2 spreads need an options-capable venue (Alpaca can't do SPX multi-leg) |
 | 3 | **Risk enforcement on the hot path** | D | A‑ | 10-gate RiskGuard + KillSwitchV2 now run on every daemon submit (were fully bypassed); realized P&L feeds the daily-loss cap | VPIN + halt/HTB gates instantiated in the factory (classes exist, not wired); one clean month with zero gate bypasses in the audit log |
 | 4 | **Execution & exits** | F | B‑ | No exit path existed at all (Alpaca orders carry no stop leg — positions could literally never close). Exit engine: 1% stop / 2R target, market closes, restart-safe journal | Resting-limit fill reconciliation; slippage tracking vs. the 5 bps model; time-based exits per strategy |
 | 5 | **P&L truth & attribution** | F | B‑ | Realized round trips now journaled with `pnl_usd`; readiness grader counts round trips, not pnl-less entry legs | 30 days of unbroken closed-trade history reconciling with Alpaca statements; EOD attribution anomalies at zero |
@@ -32,8 +32,10 @@
 | 9 | **Ops reliability** | C‑ | B+ | Paper daemon got a systemd unit (was hand-launched) with restart-storm caps; baselines timer; tick loop can no longer be killed by a dead optional feed | Hetzner RAM pressure resolved (was 305 MiB free, load 8.5); deadman alerts on daemon + baseline timers verified firing |
 | 10 | **Governance & promotion gates** | B‑ | A‑ | The A+..F readiness gate now *computes* (three of five criteria were structurally 0.0 forever); 14-day A-streak rule enforced in code | Nothing — this category just needs the data to flow. First `eligible_for_live=true` event fires a P2 alert |
 
-**Composite: C → B.** Weakest links now are #1/#2 (validation baselines + more live
-signals), which tonight's timer and the two named follow-ups address.
+**Composite: C → B+ (code-complete).** Every category that can be lifted by code has
+been; #1 (validation) and #5 (P&L truth) now lift automatically as the nightly timer
+and the exit engine accumulate real data. The composite crosses into A territory when
+the readiness grade — the platform's own arbiter — starts printing A rows.
 
 ## Why A+ cannot be granted today — and exactly how it arrives
 

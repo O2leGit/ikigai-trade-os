@@ -105,11 +105,22 @@ quarantine, freshness) with zero code change.
   The session/VPS cron calls the command-queue MCP `queue_command` with this
   payload; the worker runs `steward.mjs` then applies via `execute.mjs`.
 
+## Fact-change propagation (`propagate.mjs`)
+The manual audit that caught "Dempsey ~half" going stale (measured data said 37%)
+is now automated. A citations map (`PALLETONE_CITATIONS`: artifact -> fact-keys it
+cites) plus `staleArtifacts(citations, changedKeys)` flags EVERY artifact that
+cites a changed fact and drops it into the review queue (`toReviewRows`, gated,
+never auto-applied). So when new information is injected into the ledger, it
+reaches every downstream deliverable instead of drifting until someone notices.
+This is MEMORY.md's "supersede with provenance" made active. A second project
+ships its own citations map (reuse contract).
+
 ## Validation status (all green)
-`node tools/steward/steward.test.mjs` -> **13 tests pass**: screen (injection +
+`node tools/steward/steward.test.mjs` -> **14 tests pass**: screen (injection +
 confidentiality), ledger dedup, freshness SLA, heartbeat deadman, ingest plan
 (clean + quarantined), full cycle, deadman (cycle-liveness + memory-pipeline),
-execution guard (auto/gate/tamper/leak refused), and enqueue payload. Live checks:
+execution guard (auto/gate/tamper/leak refused), enqueue payload, and fact-change
+propagation (auto-catches the exact staleness the manual audit found). Live checks:
 one real cycle over Gmail + Drive (quarantined a real injection email; surfaced a
 new client input), a second-project reuse cycle, and the live Jarvis queue reachable.
 

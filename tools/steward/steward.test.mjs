@@ -9,6 +9,7 @@ import { runCycle } from "./steward.mjs";
 import { runDeadman } from "./deadman.mjs";
 import { buildExecution, assertSafe } from "./execute.mjs";
 import { stewardCommand } from "./enqueue.mjs";
+import { staleArtifacts, toReviewRows, PALLETONE_CITATIONS } from "./propagate.mjs";
 
 let n = 0;
 const ok = (name) => { n++; console.log(`  ok ${n} - ${name}`); };
@@ -132,5 +133,16 @@ assert.ok(cmdAuto.steps.some((s) => /--commit-ledger/.test(s)), "auto mode commi
 assert.ok(cmdAuto.steps.some((s) => /--config custom\.json/.test(s)), "custom config threads through");
 assert.ok(/execute\.mjs/.test(cmdAuto.guard), "the guard names the execution vetting step");
 ok("enqueue builds the steward-cycle command payload (report vs auto, per project)");
+
+// 10. PROPAGATION: a changed fact flags every artifact that cites it (would have
+// caught today's "Dempsey ~half" staleness automatically).
+const supStale = staleArtifacts(PALLETONE_CITATIONS, ["supplier_mix"]).map((s) => s.artifact).sort();
+assert.deepEqual(supStale, ["future_state_map", "map_v3", "presentation_v2", "value_plan_v2"], "supplier_mix change flags the 4 artifacts that cite it");
+const emailStale = staleArtifacts(PALLETONE_CITATIONS, ["snapshot_status", "finance_status"]).map((s) => s.artifact).sort();
+assert.deepEqual(emailStale, ["bd_drip", "future_state_map", "gap_registry", "plain_english_guide", "weekend_email"], "snapshot+finance change flags the email/guide/drip/gap/future artifacts");
+assert.equal(staleArtifacts(PALLETONE_CITATIONS, ["nonexistent_key"]).length, 0, "an unrelated change flags nothing");
+const rows = toReviewRows(staleArtifacts(PALLETONE_CITATIONS, ["supplier_mix"]));
+assert.ok(rows.every((r) => r.kind === "stale_artifact" && r.risk === "gate"), "stale artifacts become gated review rows, never auto-applied");
+ok("fact-change propagation flags every citing artifact (auto-catches the staleness the manual audit found)");
 
 console.log(`\nAll ${n} steward core tests passed.`);

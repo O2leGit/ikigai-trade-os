@@ -10,6 +10,15 @@ $Stage  = Join-Path $Base 'stage'
 $Log    = Join-Path $Base 'agent.log'
 
 Set-Location $Base
+
+# Ride this proven-hourly task to also run the Jarvis<->Vision guardian: heartbeat,
+# self-heal the Vision poller, and peer-check Jarvis. Runs regardless of UFP fetch
+# outcome, and never aborts the sync if the guardian errors.
+$guardian = Join-Path $env:USERPROFILE 'Documents\palletone-engagement\agent-guardian\vision-guardian.ps1'
+if (Test-Path $guardian) {
+    try { & powershell -NoProfile -ExecutionPolicy Bypass -File $guardian } catch {}
+}
+
 node .\fetch-ufp-share.mjs
 if ($LASTEXITCODE -ne 0) {
     Add-Content $Log "[$(Get-Date -Format o)] fetch exited $LASTEXITCODE - mirror skipped"

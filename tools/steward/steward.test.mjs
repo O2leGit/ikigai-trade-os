@@ -10,6 +10,7 @@ import { runDeadman } from "./deadman.mjs";
 import { buildExecution, assertSafe } from "./execute.mjs";
 import { stewardCommand } from "./enqueue.mjs";
 import { staleArtifacts, toReviewRows, PALLETONE_CITATIONS } from "./propagate.mjs";
+import { auditText, runAudit, PALLETONE_RULEBOOK } from "./audit.mjs";
 
 let n = 0;
 const ok = (name) => { n++; console.log(`  ok ${n} - ${name}`); };
@@ -144,5 +145,46 @@ assert.equal(staleArtifacts(PALLETONE_CITATIONS, ["nonexistent_key"]).length, 0,
 const rows = toReviewRows(staleArtifacts(PALLETONE_CITATIONS, ["supplier_mix"]));
 assert.ok(rows.every((r) => r.kind === "stale_artifact" && r.risk === "gate"), "stale artifacts become gated review rows, never auto-applied");
 ok("fact-change propagation flags every citing artifact (auto-catches the staleness the manual audit found)");
+
+// 11. ACCURACY AUDIT: the rulebook flags stale facts and suppresses corrected text.
+const staleDoc = [
+  "Dempsey supplies about half of the lumber.",
+  "The Data Request Pack v1.0 is approved.",
+  "$15M inventory across the network.",
+  "Day 1 is the Jul 23 target, confirming in writing; Jul 24 held as backup.",
+].join("\n");
+const staleFindings = auditText({ id: "doc", surface: "client" }, staleDoc, PALLETONE_RULEBOOK);
+const ruleHits = new Set(staleFindings.map((f) => f.ruleId));
+assert.ok(ruleHits.has("dempsey_half"), "flags 'Dempsey about half'");
+assert.ok(ruleHits.has("datapack_stale_version"), "flags Data Request Pack v1.0 (< v8.7)");
+assert.ok(ruleHits.has("unvalidated_15m"), "flags a bare $15M inventory claim");
+assert.ok(ruleHits.has("onsite_target") || ruleHits.has("jul24_backup_held"), "flags stale onsite framing");
+ok("audit rulebook flags stale Dempsey/version/$15M/onsite facts");
+
+// Corrected text must NOT be flagged (unless-suppression + versionCheck).
+const cleanDoc = [
+  "Dempsey is the anchor at ~37% of the 60-day named-vendor spend.",
+  "The Data Request Pack is at v8.7.",
+  "The $15M inventory headline is a client-stated, unvalidated working value.",
+  "Day 1 is confirmed for Thu Jul 23, 8:00 AM ET at Bartow; the Jul 24 backup is released.",
+].join("\n");
+const cleanFindings = auditText({ id: "doc2", surface: "client" }, cleanDoc, PALLETONE_RULEBOOK);
+assert.equal(cleanFindings.length, 0, `corrected text is clean, got: ${JSON.stringify(cleanFindings.map((f) => f.ruleId))}`);
+ok("audit rulebook suppresses corrected text (no false positives on fixed facts)");
+
+// versionCheck: v8.7 passes, v8.6 fails.
+assert.equal(auditText({ id: "x", surface: "client" }, "Data Request Pack v8.7 issued", PALLETONE_RULEBOOK).length, 0, "v8.7 is current");
+assert.ok(auditText({ id: "x", surface: "client" }, "Data Request Pack v8.6 issued", PALLETONE_RULEBOOK).some((f) => f.ruleId === "datapack_stale_version"), "v8.6 is stale");
+ok("audit versionCheck: v8.7 current, v8.6 flagged");
+
+// runAudit sorts most-severe-first, summarizes, and sets attention on a high finding.
+const multi = runAudit([
+  { id: "a", surface: "client", text: "Dempsey about half" },        // high
+  { id: "b", surface: "internal", text: "9.0 turns on the network" }, // low
+], PALLETONE_RULEBOOK);
+assert.equal(multi.findings[0].severity, "high", "high finding sorts first");
+assert.ok(multi.summary.attention === true, "a high finding raises attention (exit 3)");
+assert.ok(multi.summary.total >= 2 && multi.summary.artifactsFlagged === 2);
+ok("runAudit sorts by severity, summarizes, and flags attention on high drift");
 
 console.log(`\nAll ${n} steward core tests passed.`);

@@ -1,0 +1,5 @@
+# Steward runtime state (may contain client content) - never commit
+.ledger.*.json
+sensed.json
+plan.json
+*.heartbeat

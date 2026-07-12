@@ -11,6 +11,13 @@ $Log    = Join-Path $Base 'agent.log'
 
 Set-Location $Base
 
+# Self-heal: a leftover Edge window from a manual --login locks the persistent
+# profile and makes headless runs crash ("browser has been closed"). Close only
+# the Edge processes bound to OUR profile dir; never touch normal browsing.
+Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like "*ufp-share-agent\browser-profile*" } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
 # Ride this proven-hourly task to also run the Jarvis<->Vision guardian: heartbeat,
 # self-heal the Vision poller, and peer-check Jarvis. Runs regardless of UFP fetch
 # outcome, and never aborts the sync if the guardian errors.

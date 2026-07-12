@@ -1,0 +1,115 @@
+name: Steward daily accuracy audit
+
+# Reliable, reusable backbone for the PALLETRON accuracy audit. It runs the
+# DETERMINISTIC auditor (no model, no OAuth connectors, no client permission
+# gate), so it cannot be blocked the way a managed Routine can, and cannot fail
+# to reach Drive/Gmail the way a headless agent would. It inspects every artifact
+# (including the .docx binaries) against the ground-truth facts and opens a
+# tracking issue on drift. The connector-dependent SENSING of new shared-folder
+# files / transcripts / emails runs separately on a session Routine or the Jarvis
+# VPS (see tools/steward/STEWARD.md); this job is the part that must never
+# silently stop.
+#
+# Reuse for another project: copy this file, change the two content-repo
+# checkouts and the audit.config.json roots, and add a read-only STEWARD_REPO_TOKEN.
+
+on:
+  schedule:
+    # 23:13 UTC ~= 6:13 PM US Central (CDT); 5:13 PM during CST. Use "13 0 * * *"
+    # for a strict 6:00 PM CST year-round. Deliberately OFF the top of the hour:
+    # GitHub's shared scheduler is most delayed and most-skipped at :00.
+    - cron: "13 23 * * *"
+  workflow_dispatch: {}
+
+# A slow run must never overlap the next tick (the classic scheduled-job race).
+concurrency:
+  group: steward-audit
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout auditor toolkit (this repo)
+        uses: actions/checkout@v4
+
+      - name: Checkout engagement content
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: O2leGit/palletone-engagement
+          token: ${{ secrets.STEWARD_REPO_TOKEN }}
+          path: _content/palletone-engagement
+
+      - name: Checkout portal content
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: O2leGit/palletone-portal
+          token: ${{ secrets.STEWARD_REPO_TOKEN }}
+          path: _content/palletone-portal
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Self-test the auditor (red if the tool itself is broken)
+        run: node tools/steward/steward.test.mjs
+
+      - name: Run accuracy audit
+        id: audit
+        env:
+          STEWARD_ENGAGEMENT_ROOT: ${{ github.workspace }}/_content/palletone-engagement
+          STEWARD_PORTAL_ROOT: ${{ github.workspace }}/_content/palletone-portal
+        run: |
+          set +e
+          node tools/steward/run-audit.mjs --out findings.json | tee audit-report.txt
+          code=${PIPESTATUS[0]}
+          set -e
+          inspected=$(jq -r '.inspected // 0' findings.json)
+          high=$(jq -r '.summary.high // 0' findings.json)
+          echo "code=$code"           >> "$GITHUB_OUTPUT"
+          echo "inspected=$inspected" >> "$GITHUB_OUTPUT"
+          echo "high=$high"           >> "$GITHUB_OUTPUT"
+          echo "Audit exit=$code, inspected=$inspected, high=$high"
+
+      - name: Deadman ping (external liveness monitor, optional)
+        if: ${{ always() }}
+        env:
+          HC_URL: ${{ secrets.STEWARD_HEALTHCHECK_URL }}
+        run: |
+          if [ -n "$HC_URL" ]; then curl -fsS --max-time 10 "$HC_URL" || true; fi
+
+      - name: Guard - content repos not available (fail loud, never a false clean)
+        if: ${{ steps.audit.outputs.inspected == '0' }}
+        run: |
+          echo "::error::Audit inspected 0 artifacts - the content repos were not checked out. Set the STEWARD_REPO_TOKEN secret (read access to palletone-engagement and palletone-portal)."
+          exit 1
+
+      - name: Open or refresh the drift issue
+        if: ${{ steps.audit.outputs.code == '3' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create steward-drift --color FBCA04 --description "Accuracy drift found by the daily steward audit" --force || true
+          title="Steward: accuracy drift detected"
+          num=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title $title" --json number --jq '.[0].number // empty')
+          {
+            echo "The daily accuracy audit found high-severity drift on $(date -u '+%Y-%m-%d %H:%M UTC')."
+            echo ""
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo ""
+            echo '```'
+            cat audit-report.txt
+            echo '```'
+          } > issue-body.md
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file issue-body.md
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label steward-drift --body-file issue-body.md
+          fi

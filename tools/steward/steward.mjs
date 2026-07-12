@@ -53,10 +53,20 @@ export function runCycle({ config, projectKey, inputs, ledger, now = Date.now() 
   const sourceById = Object.fromEntries((project.sources || []).map((s) => [s.id, s]));
 
   const items = [];
+  // Freshness must span cycles: seed per-source last-seen from the ledger, then
+  // fold in anything new this cycle. A quiet source stays "fresh" until its SLA,
+  // instead of falsely reading "unknown" every time nothing new arrives.
+  if (!ledger.sources) ledger.sources = {};
   const lastSeen = {};
+  for (const s of project.sources || []) {
+    if (ledger.sources[s.id] && ledger.sources[s.id].lastSeen) lastSeen[s.id] = ledger.sources[s.id].lastSeen;
+  }
   for (const raw of inputs) {
     const src = sourceById[raw.sourceId] || { id: raw.sourceId, confidential: "client" };
-    if (raw.updatedAt && (!lastSeen[src.id] || raw.updatedAt > lastSeen[src.id])) lastSeen[src.id] = raw.updatedAt;
+    if (raw.updatedAt && (!lastSeen[src.id] || raw.updatedAt > lastSeen[src.id])) {
+      lastSeen[src.id] = raw.updatedAt;
+      ledger.sources[src.id] = { lastSeen: raw.updatedAt };
+    }
     const item = { ...raw, sourceLabel: raw.sourceLabel || src.label, kind: raw.kind || src.kind };
     const key = keyFor(src.id, item);
     if (seen(ledger, key)) { items.push({ key, transcriptId: item.title, status: "skipped-dedup" }); continue; }

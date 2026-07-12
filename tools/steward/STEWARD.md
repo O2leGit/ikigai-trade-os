@@ -208,6 +208,61 @@ running the sense-cycle and the audit as two separate Routines.
 > customer price, MRP/ERP execute, agent-authority or prompt change, outbound send,
 > or the approved charter's substance.
 
+## Reliable, reusable scheduling (layered - the robust approach)
+Internet research (2026) is unambiguous that NO single scheduler is fully
+reliable, so the robust design is defense-in-depth + a deadman, not one Routine:
+- **Managed Claude Code Routines** run on Anthropic cloud with the connectors, but
+  are permission-gated per client and have per-tier daily run caps.
+- **GitHub Actions cron** is portable and needs no server, but is best-effort:
+  5-30+ min delays, silent skips under load (worst at `:00`), and it
+  auto-disables after 60 days with no commits and no notice.
+- **Headless/CI runs cannot reach interactive OAuth connectors** (Drive/Gmail),
+  so the SENSING step needs a session or a credentialed VPS; the deterministic
+  AUDIT runs anywhere.
+
+So the layers, each independent so one failing cannot silence the others:
+
+1. **Audit backbone = GitHub Actions** (`.github/workflows/steward-audit.yml`).
+   Runs the deterministic `run-audit.mjs` daily - no model, no connectors, no
+   permission gate, so it cannot be blocked and cannot fail-open on missing OAuth.
+   It inspects every artifact incl. `.docx`, opens/refreshes a `steward-drift`
+   issue on high-severity drift, fails LOUD if it inspected 0 artifacts (never a
+   false "clean"), and pings an optional deadman URL. Reliability guards baked in:
+   cron off the top of the hour (`13 23 * * *`), a `concurrency` group so a slow
+   run never overlaps the next tick, and exit-code + issue signalling instead of
+   silent success. Secrets: `STEWARD_REPO_TOKEN` (read access to the two content
+   repos), optional `STEWARD_HEALTHCHECK_URL` (healthchecks.io / cronitor deadman).
+2. **Connector cycle = a managed Routine or the Jarvis VPS.** The sense/ingest of
+   new shared-folder files, transcripts, and PalletOne emails (the "update all
+   memory and databases" half) needs the Drive/Gmail/Supabase connectors, so it
+   runs on a Claude Code Routine (the prompt above) or the always-on Jarvis queue
+   with creds provisioned. This is the connector-dependent layer.
+3. **Deadman.** GitHub can silently skip a run, so an external cron monitor
+   (healthchecks.io / cronitor) pinged by the workflow alerts if a day is missed;
+   the Jarvis estate's `agent-guardian` deadman independently watches the queue
+   side. "Who watches the watcher" is covered on both layers.
+
+### Reuse for another project (the template contract)
+Everything project-specific is data, so a new project is copy-and-configure, not
+a fork: (a) copy `steward-audit.yml`, changing the two content-repo checkouts;
+(b) add a project block to `audit.config.json` (roots + artifact registry) and its
+own `RULEBOOK` in `audit.mjs` (the ground-truth facts as drift detectors) and
+`PALLETONE_CITATIONS`-style map in `propagate.mjs`; (c) add the read-only
+`STEWARD_REPO_TOKEN` secret. The engine (`extract.mjs` / `audit.mjs` /
+`run-audit.mjs` / `steward.mjs`) is reused unchanged. Same contract as the
+`--project acme` reuse already proven for the sense-cycle.
+
+### Design rubric (reliable / robust / reusable)
+- **Reliable:** A- . The deterministic layer has no permission gate and no
+  connector dependency, so it runs regardless of client state; exit-code + issue +
+  deadman ping remove the "silent success/skip" failure modes the research flags.
+  Residual risk: GitHub's 60-day auto-disable in a quiet repo (mitigated by the
+  frequent commits this repo sees, plus the external deadman).
+- **Robust:** A . Three independent layers; no single point of failure; a dead
+  layer cannot suppress the others; fails loud on misconfig (0 inspected).
+- **Reusable:** A . One engine, per-project config + rulebook + workflow copy; the
+  same pattern already runs a second `--project` cycle with zero code change.
+
 ## Validation status (all green)
 `node tools/steward/steward.test.mjs` -> **18 tests pass**: screen (injection +
 confidentiality), ledger dedup, freshness SLA, heartbeat deadman, ingest plan

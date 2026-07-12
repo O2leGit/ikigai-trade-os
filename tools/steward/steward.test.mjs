@@ -187,4 +187,30 @@ assert.ok(multi.summary.attention === true, "a high finding raises attention (ex
 assert.ok(multi.summary.total >= 2 && multi.summary.artifactsFlagged === 2);
 ok("runAudit sorts by severity, summarizes, and flags attention on high drift");
 
+// 12. ACCURACY AUDIT (hardened): rendered-map phrasings that plain text-greps
+// (and the earlier rulebook) missed. Each case is a single line so a neighbor's
+// `unless` marker cannot suppress it -- these are true positives on real maps.
+const hit = (text, id) =>
+  auditText({ id: "m", surface: "internal" }, text, PALLETONE_RULEBOOK).some((f) => f.ruleId === id);
+assert.ok(
+  hit("Dempsey Wood Products: 48.5M board-feet over 8 months, roughly half of the ~$60M spend", "dempsey_half"),
+  "flags 'roughly half' even across a decimal (48.5M) a full clause away"
+);
+assert.ok(hit("OTHER MILLS (3–8 est.) supply the balance", "supplier_3_8_mills"), "flags en-dash '(3-8 est.)' with mills-first word order");
+assert.ok(hit("Adairsville (sister) 1.83M received", "adairsville_inscope"), "flags Adairsville framed as a sister/out-of-scope site");
+assert.ok(hit("Branch codes are not yet confirmed-mapped to plant names", "branch_codes_unconfirmed"), "flags 'branch codes not yet confirmed'");
+assert.ok(hit("Branch code not yet confirmed.", "branch_codes_unconfirmed"), "flags a leftover 'not yet confirmed' tooltip");
+ok("hardened rulebook catches rendered-map drift (decimal/en-dash/adairsville/branch-codes)");
+
+// Corrected map phrasings must stay clean (unless-suppression holds).
+const mapClean = [
+  "~30+ named vendors feed the network; Dempsey is the anchor at ~37%.",
+  "Adairsville (E482) is a core in-scope plant and the largest inventory holder ($2.35M).",
+  "Rowesville is the out-of-scope sister site.",
+  "Branch codes confirmed: E529 Bartow, E530 Hazlehurst, E482 Adairsville, 479 hub.",
+].join("\n");
+const mapCleanFindings = auditText({ id: "map2", surface: "internal" }, mapClean, PALLETONE_RULEBOOK);
+assert.equal(mapCleanFindings.length, 0, `corrected map text is clean, got: ${JSON.stringify(mapCleanFindings.map((f) => f.ruleId))}`);
+ok("hardened rulebook suppresses corrected map text (no false positives)");
+
 console.log(`\nAll ${n} steward core tests passed.`);

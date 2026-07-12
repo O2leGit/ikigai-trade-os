@@ -28,6 +28,9 @@ const config = JSON.parse(readFileSync(configPath, "utf8"));
 const roots = { ...config.roots };
 if (process.env.STEWARD_ENGAGEMENT_ROOT) roots.engagement = process.env.STEWARD_ENGAGEMENT_ROOT;
 if (process.env.STEWARD_PORTAL_ROOT) roots.portal = process.env.STEWARD_PORTAL_ROOT;
+// Rendered .html deliverables (maps/decks) hold raw $ and are not committed;
+// set STEWARD_RENDERS_ROOT to audit them where they live. Unset -> they skip.
+if (process.env.STEWARD_RENDERS_ROOT) roots.renders = process.env.STEWARD_RENDERS_ROOT;
 
 const artifacts = [];
 const skipped = [];

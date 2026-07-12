@@ -103,7 +103,12 @@ export const PALLETONE_RULEBOOK = [
     severity: "high",
     risk: "gate",
     surfaces: "any",
-    pattern: /dempsey[^\n.]{0,45}(\bhalf\b|~\s*half|about half|roughly half)/i,
+    // Window widened 45 -> 90: the "half" claim often sits a full clause away
+    // from "Dempsey" ("Dempsey Wood Products: 48.5M bf over 8 months, roughly
+    // half of the ~$60M spend"). `(?:[^\n.]|\.\d)` crosses decimals like "48.5M"
+    // but still stops at a real sentence boundary (". "), so it cannot leap
+    // across unrelated prose. `unless` keeps corrected text quiet.
+    pattern: /dempsey(?:[^\n.]|\.\d){0,90}(\bhalf\b|~\s*half|about half|roughly half)/i,
     unless: /not\s+~?\s*half|\b37\s*%|supersed|earlier|hypothesis|\banchor\b/i,
     message: "Dempsey is the anchor at ~37% of the 60-day named-vendor spend, not 'half'.",
     suggest: "Use 'Dempsey ~37% (anchor)'.",
@@ -113,10 +118,39 @@ export const PALLETONE_RULEBOOK = [
     severity: "high",
     risk: "gate",
     surfaces: "any",
-    pattern: /\b3\s*(?:-|to)\s*8\s+mills?\b/i,
+    // Match both word orders and any dash: "3-8 mills", "3 to 8 mills", and the
+    // diagram form "MILLS (3-8 est.)" with an en/em dash. The old pattern only
+    // caught "3-8 mills" with an ASCII hyphen, so rendered maps slipped through.
+    pattern: /\bmills?\b[^\n.]{0,15}\b3\s*[-–—]\s*8\b|\b3\s*(?:[-–—]|to)\s*8\s+mills?\b/i,
     unless: /supersed|earlier|hypothesis|30\+|30 named|measured/i,
     message: "Supplier mix is measured: ~30+ named vendors in the 60-day receiving.",
     suggest: "Use '~30+ named vendors (Dempsey ~37%)'.",
+  },
+  {
+    id: "adairsville_inscope",
+    severity: "high",
+    risk: "gate",
+    surfaces: "any",
+    // Adairsville (E482) was briefly framed as a sister-division / out-of-scope
+    // site; F-09 confirms it is a CORE in-scope plant and the largest inventory
+    // holder. Flag either word order; suppress when the correct framing is near.
+    pattern: /adairsville[^\n.]{0,30}(sister|out-?of-?scope|not in ?scope)|(sister-?div|sister division|sister site|out-?of-?scope)[^\n.]{0,30}adairsville/i,
+    unless: /in-?scope|core plant|\be482\b|largest inventor|not a sister|cupoli-?confirmed/i,
+    message: "Adairsville is E482, a core in-scope plant and the largest inventory holder ($2.35M) - not a sister-division / out-of-scope site.",
+    suggest: "Frame Adairsville (E482) as a core in-scope plant; Rowesville is the out-of-scope sister site.",
+  },
+  {
+    id: "branch_codes_unconfirmed",
+    severity: "med",
+    risk: "gate",
+    surfaces: "any",
+    // Branch codes were once "not yet confirmed-mapped"; Cupoli confirmed them
+    // Jul 10 (F-09). Catch the stale "not yet confirmed / unconfirmed" phrasing,
+    // including leftover diagram tooltips that contradict a "confirmed" summary.
+    pattern: /branch cod\w*[^\n.]{0,45}(not[- ]?(?:yet )?confirm|un-?confirm|not[- ]?(?:yet )?mapp|not yet)|\bcode[^\n.]{0,20}not yet confirmed/i,
+    unless: /now confirmed|are confirmed|codes confirmed|confirmed:|cupoli-?confirmed|e529\s+bartow/i,
+    message: "Branch codes are confirmed: E529 Bartow, E530 Hazlehurst, E482 Adairsville, 479 hub (Cupoli, Jul 10).",
+    suggest: "State branch codes as confirmed (E529 Bartow, E530 Hazlehurst, E482 Adairsville, 479 hub).",
   },
   {
     id: "new_london_inscope",

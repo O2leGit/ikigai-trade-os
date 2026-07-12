@@ -2,8 +2,10 @@
   "project": "palletone",
   "roots": {
     "engagement": "/workspace/palletone-engagement",
-    "portal": "/workspace/palletone-portal"
+    "portal": "/workspace/palletone-portal",
+    "renders": null
   },
+  "_renders_note": "Rendered .html deliverables (maps, decks) carry raw client $ figures, so they are NOT committed. Point STEWARD_RENDERS_ROOT at the folder that holds them (a local dir or the Drive mirror) to audit them; when unset, the 'renders' artifacts below skip cleanly.",
   "artifacts": [
     { "id": "charter_docx", "root": "engagement", "rel": "artifacts/PalletOne-Executive-Charter_v11.docx", "surface": "deliverable" },
     { "id": "playbook_docx", "root": "engagement", "rel": "artifacts/PalletOne-Engagement-Playbook_v1.2.docx", "surface": "internal" },
@@ -32,6 +34,10 @@
     { "id": "partner_financials", "root": "portal", "rel": "src/content/partner/financials.ts", "surface": "internal" },
     { "id": "partner_roadmap_page", "root": "portal", "rel": "src/app/(app)/partner/roadmap/page.tsx", "surface": "internal" },
 
-    { "id": "client_charter_docx", "root": "portal", "rel": "public/deliverables/PalletOne-Executive-Charter-v11.docx", "surface": "deliverable" }
+    { "id": "client_charter_docx", "root": "portal", "rel": "public/deliverables/PalletOne-Executive-Charter-v11.docx", "surface": "deliverable" },
+
+    { "id": "render_map", "root": "renders", "rel": "PalletOne_SupplyChain_Map.html", "surface": "internal" },
+    { "id": "render_map_provenance", "root": "renders", "rel": "PalletOne_SupplyChain_Map_provenance.html", "surface": "internal" },
+    { "id": "render_value_plan", "root": "renders", "rel": "PalletOne_SE_Value_Plan.html", "surface": "internal" }
   ]
 }

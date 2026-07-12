@@ -130,8 +130,18 @@ one interface.
   bit the Data Request Pack). A second project ships its own rulebook; the engine
   is reused unchanged.
 - `audit.config.json` is the artifact registry (both charter `.docx` copies,
-  portal client + partner content, seed SQL, app pages, engagement records).
-  Roots are env-overridable (`STEWARD_ENGAGEMENT_ROOT`, `STEWARD_PORTAL_ROOT`).
+  portal client + partner content, seed SQL, app pages, engagement records, and
+  rendered `.html` deliverables). Roots are env-overridable
+  (`STEWARD_ENGAGEMENT_ROOT`, `STEWARD_PORTAL_ROOT`, `STEWARD_RENDERS_ROOT`).
+  Rendered maps/decks carry raw client $ and are NOT committed, so the `renders`
+  root defaults to null (those entries skip cleanly); point `STEWARD_RENDERS_ROOT`
+  at wherever the renders live (a local dir or the Drive mirror) to audit them.
+  The rulebook is tuned to catch drift in these renders too - a stale supply-chain
+  map that greps clean (Dempsey "half" a clause past a decimal, "(3-8 est.)" with
+  an en-dash, Adairsville mis-scoped as a sister site, "branch codes not yet
+  confirmed") is exactly the silent-green class the `dempsey_half`,
+  `supplier_3_8_mills`, `adairsville_inscope`, and `branch_codes_unconfirmed`
+  rules now cover.
 - `run-audit.mjs` wires inspection to the engine, prints a report, writes findings
   JSON (`--out`), annotates each finding with `autofixable` (a `.docx` cannot be
   text-patched - it needs source regeneration), and **exits 3 on high-severity
@@ -264,13 +274,15 @@ own `RULEBOOK` in `audit.mjs` (the ground-truth facts as drift detectors) and
   same pattern already runs a second `--project` cycle with zero code change.
 
 ## Validation status (all green)
-`node tools/steward/steward.test.mjs` -> **18 tests pass**: screen (injection +
+`node tools/steward/steward.test.mjs` -> **20 tests pass**: screen (injection +
 confidentiality), ledger dedup, freshness SLA, heartbeat deadman, ingest plan
 (clean + quarantined), full cycle, deadman (cycle-liveness + memory-pipeline),
 execution guard (auto/gate/tamper/leak refused), enqueue payload, fact-change
 propagation (auto-catches the exact staleness the manual audit found), and the
 accuracy auditor (flags stale facts, suppresses corrected text with zero false
-positives, version-drift check, severity sort + attention). Live checks:
+positives, version-drift check, severity sort + attention, plus the rendered-map
+drift rules: decimal-crossing Dempsey "half", en-dash "(3-8 est.)", Adairsville
+mis-scoped as a sister site, and stale "branch codes not yet confirmed"). Live checks:
 one real cycle over Gmail + Drive (quarantined a real injection email; surfaced a
 new client input), a second-project reuse cycle, and the live Jarvis queue reachable.
 

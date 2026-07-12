@@ -142,7 +142,9 @@ the machine-readable report). A live run over 25 real artifacts surfaced one dri
 text-greps missed: the playbook `.docx` still cited Data Request Pack v1.0.
 
 ### The daily Routine prompt (fire once a day)
-Create with `create_trigger` (cron e.g. `30 12 * * *`). Auto-apply low-risk, gate
+Create with `create_trigger`, fresh-session-per-fire, push notifications on drift.
+Cron `0 9 * * *` (4:00 AM Central in summer/CDT = 09:00 UTC; use `0 10 * * *` for
+4:00 AM CST year-round, since cron runs in fixed UTC). Auto-apply low-risk, gate
 the rest, matching the permission model.
 
 > Run the PALLETRON accuracy audit for project `palletone`. Ensure the engagement

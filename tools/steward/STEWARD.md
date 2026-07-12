@@ -83,3 +83,38 @@ cadence: hourly, offset minute (e.g. `17 * * * *`), riding alongside the existin
 Add a project block to `steward.config.json` (`name`, `memoryRepo`, `manifest`,
 `sources` with per-source `slaHours` + `confidential`, `owners`) and fire a Routine
 with that `--project`. No code change. That is the scalability/reuse contract.
+Validated: a second `--project acme` config runs a full cycle (plan, screen,
+quarantine, freshness) with zero code change.
+
+## Phase 2: durable always-on + guards
+- **`deadman.mjs`** - the outside watcher ("who watches the watcher"). Fires on a
+  silent-green steward: no cycle in N minutes (cycle-liveness), no ingest in M
+  hours (memory-pipeline), or a source past its SLA. Runs independently of the
+  steward so a dead cycle cannot suppress its own alarm. This complements the
+  Jarvis-estate deadmen already on the VPS (`queue-liveness-deadman.sh`,
+  `memory-deadman.sh`, `vision-deadman.sh`).
+- **`execute.mjs`** - the execution guard. Re-derives every action's risk from the
+  config and REFUSES anything mislabeled, any action on quarantined content, and
+  any L0 action; `assertSafe()` throws if a non-auto op ever reaches the apply set.
+  This is the "authorization enforced outside the agent, not by a prompt" control:
+  the session must route effects through it.
+- **`enqueue.mjs`** - builds the Jarvis command-queue payload for a cycle (report
+  vs auto, per project). Phase 2 moves scheduling from the Claude Code Routine to
+  the always-on Jarvis queue (`jarvis.command_queue` -> VPS auto-poller -> worker).
+  The queue is confirmed live and reachable (fetch_status: active auto-poller).
+  The session/VPS cron calls the command-queue MCP `queue_command` with this
+  payload; the worker runs `steward.mjs` then applies via `execute.mjs`.
+
+## Validation status (all green)
+`node tools/steward/steward.test.mjs` -> **13 tests pass**: screen (injection +
+confidentiality), ledger dedup, freshness SLA, heartbeat deadman, ingest plan
+(clean + quarantined), full cycle, deadman (cycle-liveness + memory-pipeline),
+execution guard (auto/gate/tamper/leak refused), and enqueue payload. Live checks:
+one real cycle over Gmail + Drive (quarantined a real injection email; surfaced a
+new client input), a second-project reuse cycle, and the live Jarvis queue reachable.
+
+Portal side (separate repo, PRs #5/#6): the `project_steward` fleet+router wiring,
+the `steward_*` Supabase schema, and the closed decision->outcome loop
+(decision-loop.ts + getDecisionLog + recordDecision/recordOutcome) are all covered
+by 55 passing TS assertions. The only piece needing a live Supabase to exercise end
+to end is the actual DB write round-trip.

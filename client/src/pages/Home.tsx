@@ -158,7 +158,7 @@ export default function Home() {
   const displaySectors = liveData.sectors
     ? liveData.sectors.map((s) => ({
         sector: `${s.sector} (${s.ticker})`,
-        ytd: s.ytd,
+        ytd: s.dayChange ?? s.ytd,
         status: s.status,
         note: `Current price: $${s.price.toFixed(2)} | Day change: ${s.changePercent >= 0 ? "+" : ""}${s.changePercent.toFixed(2)}%`,
       }))

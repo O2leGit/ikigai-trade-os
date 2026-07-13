@@ -1,4 +1,4 @@
-import type { Config, Context } from "@netlify/functions";
+import type { Context } from "@netlify/functions";
 import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
 import { quoteLine, stock, type SymbolSpec } from "../../shared/marketProviders";
@@ -157,9 +157,8 @@ Analyze this data and generate the full briefing JSON. Requirements:
 - If sectors show defensive rotation, flag it as institutional risk-off positioning
 - Scenario matrix probabilities must sum to approximately 100%`;
 
-    console.log("Calling Claude API...");
+    console.log("Calling LLM...");
     const response = await anthropicMessagesViaOpenRouter({
-        model: "claude-haiku-4-5-20251001",
         max_tokens: 8192,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
@@ -192,7 +191,7 @@ Analyze this data and generate the full briefing JSON. Requirements:
     // Add metadata
     briefing._meta = {
       generatedAt: now.toISOString(),
-      model: "claude-haiku-4-5-20251001",
+      model: response.model,
       marketDataPoints: marketData.split("\n").length,
     };
 
@@ -215,8 +214,9 @@ Analyze this data and generate the full briefing JSON. Requirements:
   }
 }
 
-// Schedule: 6:00 AM Central Time daily (11:00 UTC during CDT, 12:00 UTC during CST)
-// Using 11:00 UTC = 6 AM CDT (March-Nov) / 5 AM CST (Nov-Mar)
-export const config: Config = {
-  schedule: "0 11 * * *",
-};
+// NOTE: this function is intentionally NOT scheduled anymore. It used to fire
+// at 11:00 UTC, the same minute scheduled-briefing dispatches
+// trigger-briefing-background -- two full LLM generations racing to overwrite
+// briefings/latest with *different* aiSummary schemas (paragraphs vs sections).
+// scheduled-briefing.mts is now the single scheduler; this remains callable
+// manually for the legacy paragraphs-format briefing.

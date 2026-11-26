@@ -1,31 +1,36 @@
 import type { Context } from "@netlify/functions";
 import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
+import { quoteLine, stock, type SymbolSpec } from "../../shared/marketProviders";
 
 // Background function: returns 202 immediately, gets 15-minute timeout.
-// Fetches market data, calls Claude API, stores briefing in Netlify Blobs.
+// Fetches market data, calls the LLM, stores briefing in Netlify Blobs.
 // Context-aware: pre-market, intraday, end-of-day, weekend editions.
 
 const YAHOO_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 };
 
-async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string> {
+// Rich 5-day line straight from Yahoo (range/volume context the multi-provider
+// helper can't give). Returns null on any failure -- Yahoo blocks most
+// serverless IPs, so this is a bonus path, never the only path.
+async function fetchYahooRich(yahooSym: string, name: string): Promise<string | null> {
   try {
     const res = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=5d&interval=1d`,
-      { headers: YAHOO_HEADERS }
+      { headers: YAHOO_HEADERS, signal: AbortSignal.timeout(6000) }
     );
-    if (!res.ok) return `${name}: HTTP ${res.status}`;
+    if (!res.ok) return null;
     const data = await res.json();
     const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
     const meta = data.chart?.result?.[0]?.meta;
-    if (!quotes || !meta) return `${name}: No data`;
+    if (!quotes || !meta) return null;
     const closes = (quotes.close || []).filter((c: number | null) => c !== null);
     const highs = (quotes.high || []).filter((h: number | null) => h !== null);
     const lows = (quotes.low || []).filter((l: number | null) => l !== null);
     const volumes = (quotes.volume || []).filter((v: number | null) => v !== null);
     const lastClose = closes[closes.length - 1];
+    if (!(lastClose > 0)) return null;
     const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
     const high = highs[highs.length - 1];
     const low = lows[lows.length - 1];
@@ -34,8 +39,35 @@ async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string>
     const fiveDayHigh = highs.length > 0 ? Math.max(...highs).toFixed(2) : "N/A";
     const fiveDayLow = lows.length > 0 ? Math.min(...lows).toFixed(2) : "N/A";
     return `${name}: $${lastClose?.toFixed(2)} (${change}%) | H:${high?.toFixed(2)} L:${low?.toFixed(2)} | 5d range: ${fiveDayLow}-${fiveDayHigh} | Vol: ${vol ? (vol / 1e6).toFixed(1) + "M" : "N/A"}`;
-  } catch (err) {
-    return `${name}: ${err instanceof Error ? err.message : "unavailable"}`;
+  } catch {
+    return null;
+  }
+}
+
+// Rich Yahoo line when reachable, multi-provider (Finnhub/TwelveData/Polygon)
+// price+change line otherwise. Never returns an HTTP error string -- feeding
+// "S&P 500: HTTP 403" to the model made it fabricate numbers.
+async function fetchSymbolLine(spec: SymbolSpec & { label: string; yahooEnc: string }): Promise<string> {
+  const rich = await fetchYahooRich(spec.yahooEnc, spec.label);
+  if (rich) return rich;
+  return quoteLine(spec);
+}
+
+// Crown Macro Letter context ingested via /api/ingest-newsletter (if any,
+// and only while fresh). Gives the model the desk's active thesis, key
+// levels, and open trade setups to reason against.
+async function fetchNewsletterContext(): Promise<string> {
+  try {
+    const store = getStore("newsletter");
+    const latest = (await store.get("latest", { type: "json" })) as any;
+    if (!latest?.receivedAt) return "";
+    const ageDays = (Date.now() - new Date(latest.receivedAt).getTime()) / 86_400_000;
+    if (ageDays > 14) return "";
+    const body: string = latest.summaryForPrompt || latest.text || "";
+    if (!body) return "";
+    return `\n\nPREMIUM RESEARCH CONTEXT -- "${latest.source ?? "Crown Macro Letter"}" (${latest.subject ?? "latest issue"}, received ${String(latest.receivedAt).slice(0, 10)}):\n${body.slice(0, 6000)}\n\nWeigh this desk research against the live market data above. If its thesis conflicts with current price action, say so explicitly; if a listed trade setup's entry trigger or invalidation level is near current prices, surface it in Actionable Trades with attribution "per Crown Macro".`;
+  } catch {
+    return "";
   }
 }
 
@@ -132,34 +164,39 @@ export default async function handler(_req: Request, _context: Context) {
     // Mark as in-progress
     await store.setJSON("briefing-status", { status: "generating", startedAt: now.toISOString() });
 
-    // Expanded market data -- more symbols for richer analysis
-    const symbols = [
-      { yahoo: "%5EGSPC", name: "S&P 500" },
-      { yahoo: "%5EVIX", name: "VIX" },
-      { yahoo: "SPY", name: "SPY" },
-      { yahoo: "QQQ", name: "QQQ" },
-      { yahoo: "IWM", name: "IWM (Russell 2000)" },
-      { yahoo: "DIA", name: "DIA (Dow)" },
-      { yahoo: "%5EIXIC", name: "Nasdaq Composite" },
+    // Expanded market data -- more symbols for richer analysis. ETFs resolve
+    // via the keyed providers (Finnhub/TwelveData/Polygon) with Yahoo as the
+    // rich-context bonus; indices/futures are Yahoo-only by nature.
+    const symbols: (SymbolSpec & { label: string; yahooEnc: string })[] = [
+      { yahoo: "^GSPC", yahooEnc: "%5EGSPC", label: "S&P 500" },
+      { yahoo: "^VIX", yahooEnc: "%5EVIX", label: "VIX" },
+      { ...stock("SPY"), yahooEnc: "SPY", label: "SPY" },
+      { ...stock("QQQ"), yahooEnc: "QQQ", label: "QQQ" },
+      { ...stock("IWM"), yahooEnc: "IWM", label: "IWM (Russell 2000)" },
+      { ...stock("DIA"), yahooEnc: "DIA", label: "DIA (Dow)" },
+      { yahoo: "^IXIC", yahooEnc: "%5EIXIC", label: "Nasdaq Composite" },
       // Sectors for rotation analysis
-      { yahoo: "XLK", name: "XLK (Tech)" },
-      { yahoo: "XLE", name: "XLE (Energy)" },
-      { yahoo: "XLF", name: "XLF (Financials)" },
-      { yahoo: "XLV", name: "XLV (Healthcare)" },
-      { yahoo: "XLU", name: "XLU (Utilities)" },
-      { yahoo: "XLY", name: "XLY (Discretionary)" },
-      { yahoo: "XLP", name: "XLP (Staples)" },
+      { ...stock("XLK"), yahooEnc: "XLK", label: "XLK (Tech)" },
+      { ...stock("XLE"), yahooEnc: "XLE", label: "XLE (Energy)" },
+      { ...stock("XLF"), yahooEnc: "XLF", label: "XLF (Financials)" },
+      { ...stock("XLV"), yahooEnc: "XLV", label: "XLV (Healthcare)" },
+      { ...stock("XLU"), yahooEnc: "XLU", label: "XLU (Utilities)" },
+      { ...stock("XLY"), yahooEnc: "XLY", label: "XLY (Discretionary)" },
+      { ...stock("XLP"), yahooEnc: "XLP", label: "XLP (Staples)" },
       // Macro signals
-      { yahoo: "GLD", name: "Gold (GLD)" },
-      { yahoo: "CL%3DF", name: "WTI Crude Oil" },
-      { yahoo: "%5ETNX", name: "10Y Treasury Yield" },
-      { yahoo: "TLT", name: "TLT (20Y+ Bonds)" },
+      { ...stock("GLD"), yahooEnc: "GLD", label: "Gold (GLD)" },
+      { yahoo: "CL=F", yahooEnc: "CL%3DF", label: "WTI Crude Oil" },
+      { yahoo: "^TNX", yahooEnc: "%5ETNX", label: "10Y Treasury Yield" },
+      { ...stock("TLT"), yahooEnc: "TLT", label: "TLT (20Y+ Bonds)" },
     ];
 
     console.log("Fetching market data for briefing...");
-    const marketResults = await Promise.all(symbols.map(s => fetchYahooSymbol(s.yahoo, s.name)));
+    const [marketResults, newsletterContext] = await Promise.all([
+      Promise.all(symbols.map(s => fetchSymbolLine(s))),
+      fetchNewsletterContext(),
+    ]);
     const marketData = marketResults.join("\n");
-    console.log("Market data fetched, calling Claude...");
+    console.log("Market data fetched, calling LLM...");
 
     // Context-aware edition
     const { edition, editionKey, context: editionContext } = getEdition(now);
@@ -175,12 +212,11 @@ export default async function handler(_req: Request, _context: Context) {
     });
 
     const response = await anthropicMessagesViaOpenRouter({
-        model: "claude-haiku-4-5-20251001",
         max_tokens: 7000,
         system: SYSTEM_PROMPT,
         messages: [{
           role: "user",
-          content: `Generate the ${edition} for ${dateStr} at ${timeStr} CT.\n\nEDITION CONTEXT: ${editionContext}\n\nSet briefingEdition to "${edition}" and briefingDate to "${dateStr}".\n\nMarket data:\n${marketData}\n\nOutput ONLY valid JSON.`,
+          content: `Generate the ${edition} for ${dateStr} at ${timeStr} CT.\n\nEDITION CONTEXT: ${editionContext}\n\nSet briefingEdition to "${edition}" and briefingDate to "${dateStr}".\n\nMarket data:\n${marketData}${newsletterContext}\n\nOutput ONLY valid JSON.`,
         }],
       });
 
@@ -212,9 +248,10 @@ export default async function handler(_req: Request, _context: Context) {
     // Store briefing with metadata
     briefing._meta = {
       generatedAt: now.toISOString(),
-      model: "claude-haiku-4-5-20251001",
+      model: response.model,
       edition: editionKey,
       editionLabel: edition,
+      newsletterContext: newsletterContext ? true : false,
     };
 
     // Store as latest + daily + archive

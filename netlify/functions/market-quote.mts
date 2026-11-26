@@ -1,25 +1,18 @@
 import type { Context } from "@netlify/functions";
+import { fetchQuote, stock, type SymbolSpec } from "../../shared/marketProviders";
 
-async function fetchYahooQuote(symbol: string) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      "Accept": "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const meta = data?.chart?.result?.[0]?.meta;
-  if (!meta) return null;
-  const price = meta.regularMarketPrice ?? meta.previousClose ?? 0;
-  const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
-  const change = price - prevClose;
-  const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
-  return { symbol, price, change, changePercent, name: meta.shortName ?? meta.symbol ?? symbol };
+// Single-symbol quote. Uses the shared multi-provider chain
+// (Finnhub -> Twelve Data -> Polygon -> Yahoo) instead of Yahoo-direct only:
+// Yahoo blocks most serverless IPs, which made this endpoint 502 in production.
+
+function specFor(symbol: string): SymbolSpec {
+  // Indices (^VIX), futures (GC=F), FX pairs etc. are Yahoo-namespace symbols
+  // the keyed providers don't serve under the same ticker -- Yahoo-only.
+  if (/[\^=.]/.test(symbol)) return { yahoo: symbol };
+  return stock(symbol);
 }
 
-export default async (req: Request, context: Context) => {
+export default async (req: Request, _context: Context) => {
   const url = new URL(req.url);
   const symbol = url.searchParams.get("symbol");
   if (!symbol) {
@@ -29,13 +22,21 @@ export default async (req: Request, context: Context) => {
     });
   }
 
-  const result = await fetchYahooQuote(symbol);
-  if (!result) {
+  const quote = await fetchQuote(specFor(symbol));
+  if (!quote) {
     return new Response(JSON.stringify({ error: "Failed to fetch quote" }), {
       status: 502,
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  const result = {
+    symbol,
+    price: quote.price,
+    change: quote.change,
+    changePercent: quote.changePercent,
+    name: quote.name ?? symbol,
+  };
 
   return new Response(JSON.stringify(result), {
     headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=30" },

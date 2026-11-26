@@ -183,7 +183,6 @@ export default async function handler(req: Request, _context: Context) {
     });
 
     const response = await anthropicMessagesViaOpenRouter({
-        model: "claude-haiku-4-5-20251001",
         max_tokens: 16000,
         system: SYSTEM_PROMPT,
         messages: [{
@@ -235,7 +234,7 @@ Review every position line-by-line. Flag critical items. Generate opportunity ti
     const timeKey = now.toISOString().replace(/[:.]/g, "-"); // e.g. "2026-03-16T14-30-00-000Z"
     analysis._meta = {
       analyzedAt: now.toISOString(),
-      model: "claude-haiku-4-5-20251001",
+      model: response.model,
       accountsAnalyzed: Object.keys(accountGroups),
       positionCount: positions.length,
     };

@@ -1,31 +1,7 @@
 import type { Context } from "@netlify/functions";
 import { anthropicMessagesViaOpenRouter } from "./_llm.mts";
 import { getStore } from "@netlify/blobs";
-
-const YAHOO_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-};
-
-async function fetchYahooSymbol(yahooSym: string, name: string): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=5d&interval=1d`,
-      { headers: YAHOO_HEADERS }
-    );
-    if (!res.ok) return `${name}: HTTP ${res.status}`;
-    const data = await res.json();
-    const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
-    const meta = data.chart?.result?.[0]?.meta;
-    if (!quotes || !meta) return `${name}: No data`;
-    const closes = (quotes.close || []).filter((c: number | null) => c !== null);
-    const lastClose = closes[closes.length - 1];
-    const prevClose = closes.length > 1 ? closes[closes.length - 2] : meta.chartPreviousClose;
-    const change = prevClose ? ((lastClose - prevClose) / prevClose * 100).toFixed(2) : "N/A";
-    return `${name}: $${lastClose?.toFixed(2)} (${change}%)`;
-  } catch (err) {
-    return `${name}: ${err instanceof Error ? err.message : "unavailable"}`;
-  }
-}
+import { quoteLine, stock, type SymbolSpec } from "../../shared/marketProviders";
 
 const SYSTEM_PROMPT = `You are the chief market strategist at a top-tier options-focused hedge fund writing the morning intelligence brief. You are brutally direct, numerically precise, and never hedge or equivocate. You interpret everything through the lens of an options trader who sells premium for a living.
 
@@ -53,22 +29,20 @@ export default async function handler(req: Request, _context: Context) {
   }
 
   try {
-    // Step 2: Fetch market data
-    const symbols = [
-      { yahoo: "%5EGSPC", name: "S&P 500" },
-      { yahoo: "%5EVIX", name: "VIX" },
-      { yahoo: "SPY", name: "SPY" },
-      { yahoo: "QQQ", name: "QQQ" },
-      { yahoo: "IWM", name: "IWM" },
-      { yahoo: "DIA", name: "DIA" },
-      { yahoo: "XLE", name: "XLE" },
-      { yahoo: "XLK", name: "XLK" },
-      { yahoo: "GLD", name: "GLD" },
+    // Step 2: Fetch market data (multi-provider chain; Yahoo last resort)
+    const symbols: (SymbolSpec & { label: string })[] = [
+      { yahoo: "^GSPC", label: "S&P 500" },
+      { yahoo: "^VIX", label: "VIX" },
+      { ...stock("SPY"), label: "SPY" },
+      { ...stock("QQQ"), label: "QQQ" },
+      { ...stock("IWM"), label: "IWM" },
+      { ...stock("DIA"), label: "DIA" },
+      { ...stock("XLE"), label: "XLE" },
+      { ...stock("XLK"), label: "XLK" },
+      { ...stock("GLD"), label: "GLD" },
     ];
 
-    const marketResults = await Promise.all(
-      symbols.map((s) => fetchYahooSymbol(s.yahoo, s.name))
-    );
+    const marketResults = await Promise.all(symbols.map((s) => quoteLine(s)));
     const marketData = marketResults.join("\n");
 
     // Step 3: Call Claude
@@ -79,7 +53,6 @@ export default async function handler(req: Request, _context: Context) {
     });
 
     const response = await anthropicMessagesViaOpenRouter({
-        model: "claude-haiku-4-5-20251001",
         max_tokens: 6000,
         system: SYSTEM_PROMPT,
         messages: [{
@@ -114,7 +87,7 @@ export default async function handler(req: Request, _context: Context) {
     // Step 5: Store in Blobs
     briefing._meta = {
       generatedAt: now.toISOString(),
-      model: "claude-haiku-4-5-20251001",
+      model: response.model,
     };
 
     const store = getStore("briefings");

@@ -173,6 +173,7 @@ export default async function handler(req: Request, _context: Context) {
   const url = new URL(req.url);
   const finnhubKey = url.searchParams.get("key") || process.env.FINNHUB_KEY;
   const marketauxKey = process.env.MARKETAUX_KEY;
+  const healthMode = url.searchParams.get("health") === "1";
 
   const results: NewsOutput[] = [];
   const seenHeadlines = new Set<string>();
@@ -328,6 +329,35 @@ export default async function handler(req: Request, _context: Context) {
     if (hourA === hourB) return (impactOrder[a.impact] || 3) - (impactOrder[b.impact] || 3);
     return b.datetime - a.datetime;
   });
+
+  // ?health=1 -- per-provider diagnostics so "are the news feeds live?" is a
+  // one-request check instead of guesswork.
+  if (healthMode) {
+    const newest = results.length ? Math.max(...results.map((r) => r.datetime)) : null;
+    const health = {
+      ok: results.length > 0 && errors.length === 0,
+      checkedAt: new Date().toISOString(),
+      providers: {
+        finnhub: {
+          keyConfigured: Boolean(finnhubKey),
+          items: results.filter((r) => r.provider === "finnhub").length,
+        },
+        marketaux: {
+          keyConfigured: Boolean(marketauxKey),
+          items: results.filter((r) => r.provider === "marketaux").length,
+        },
+      },
+      totalItems: results.length,
+      newestItemAt: newest ? new Date(newest * 1000).toISOString() : null,
+      newestItemAgeMinutes: newest ? Math.round((Date.now() / 1000 - newest) / 60) : null,
+      sources,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+    return new Response(JSON.stringify(health), {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
 
   const response = {
     items: results.slice(0, 20),

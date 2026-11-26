@@ -79,7 +79,6 @@ export default async function handler(req: Request, _context: Context) {
       .map((m) => ({ role: m.role, content: m.content }));
 
     const response = await anthropicMessagesViaOpenRouter({
-      model: "claude-haiku-4-5-20251001",
       max_tokens: 4096,
       system: systemContent,
       messages: claudeMessages,
